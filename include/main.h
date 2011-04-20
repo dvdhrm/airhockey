@@ -4,7 +4,7 @@
  * Dedicated to the Public Domain
  */
 
-#include <stdint.h>
+#include <stdlib.h>
 
 #include <SFML/Window/OpenGL.h>
 
