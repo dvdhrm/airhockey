@@ -7,7 +7,7 @@
 .PHONY: all clean
 
 all:
-	gcc -o airhockey src/*.c -lcsfml-window -lGLU -Iinclude
+	gcc -o airhockey src/*.c -lcsfml-window -lGLU -Iinclude -Wall
 
 clean:
 	rm -f airhockey
