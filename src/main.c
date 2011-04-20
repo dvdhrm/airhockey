@@ -163,7 +163,7 @@ int main()
 
 		now = env_time_now(ENV_CLOCK_MONO);
 		if (now > last + 1000000) {
-			printf("1s: %u %u frames\n", fps, frames);
+			printf("1s: %lu %lu frames\n", fps, frames);
 			fps = 0;
 			last = now;
 		}
