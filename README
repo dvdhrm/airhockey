@@ -1,0 +1,12 @@
+= Airhockey =
+  TODO
+
+= Install =
+  compilation: make
+  clean: make clean
+
+= License =
+  This program and the related documentation is dedicated to the Public Domain.
+
+= Author =
+  David Herrmann - dh.herrmann@googlemail.com
