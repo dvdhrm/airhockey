@@ -16,13 +16,13 @@ struct e3d_shader *e3d_shader_new()
 	struct e3d_shader *shader;
 	GLuint program;
 
-	program = glCreateProgram();
+	program = e3d_gl.CreateProgram();
 	if (!program || e3d_etest())
 		return NULL;
 
 	shader = malloc(sizeof(*shader));
 	if (!shader) {
-		glDeleteProgram(program);
+		e3d_gl.DeleteProgram(program);
 		return NULL;
 	}
 
@@ -32,7 +32,7 @@ struct e3d_shader *e3d_shader_new()
 
 void e3d_shader_free(struct e3d_shader *shader)
 {
-	glDeleteProgram(shader->program);
+	e3d_gl.DeleteProgram(shader->program);
 	free(shader);
 }
 
@@ -81,10 +81,10 @@ bool e3d_shader_compile(struct e3d_shader *shader, enum e3d_shader_type type, co
 
 	switch (type) {
 		case E3D_SHADER_VERT:
-			shaderobj = glCreateShader(GL_VERTEX_SHADER);
+			shaderobj = e3d_gl.CreateShader(GL_VERTEX_SHADER);
 			break;
 		case E3D_SHADER_FRAG:
-			shaderobj = glCreateShader(GL_FRAGMENT_SHADER);
+			shaderobj = e3d_gl.CreateShader(GL_FRAGMENT_SHADER);
 			break;
 		default:
 			return false;
@@ -95,16 +95,16 @@ bool e3d_shader_compile(struct e3d_shader *shader, enum e3d_shader_type type, co
 
 	vnum = load_file(path, &vsh);
 	if (vnum < 1) {
-		glDeleteShader(shaderobj);
+		e3d_gl.DeleteShader(shaderobj);
 		return false;
 	}
 
-	glShaderSource(shaderobj, 1, &vsh, &vnum);
-	glCompileShader(shaderobj);
-	glGetShaderiv(shaderobj, GL_COMPILE_STATUS, &result);
+	e3d_gl.ShaderSource(shaderobj, 1, (const GLchar**)&vsh, &vnum);
+	e3d_gl.CompileShader(shaderobj);
+	e3d_gl.GetShaderiv(shaderobj, GL_COMPILE_STATUS, &result);
 	if(result == GL_FALSE || e3d_etest()) {
 		free(vsh);
-		glDeleteShader(shaderobj);
+		e3d_gl.DeleteShader(shaderobj);
 		return false;
 	}
 	free(vsh);
@@ -112,8 +112,8 @@ bool e3d_shader_compile(struct e3d_shader *shader, enum e3d_shader_type type, co
 	/* Attach shader to program file and then mark shader for deletion. It gets
 	 * deleted when it is detached from every program.
 	 */
-	glAttachShader(shader->program, shaderobj);
-	glDeleteShader(shaderobj);
+	e3d_gl.AttachShader(shader->program, shaderobj);
+	e3d_gl.DeleteShader(shaderobj);
 	if (e3d_etest())
 		return false;
 
@@ -124,8 +124,8 @@ bool e3d_shader_link(struct e3d_shader *shader)
 {
 	GLint result;
 
-	glLinkProgram(shader->program);
-	glGetProgramiv(shader->program, GL_LINK_STATUS, &result);
+	e3d_gl.LinkProgram(shader->program);
+	e3d_gl.GetProgramiv(shader->program, GL_LINK_STATUS, &result);
 	if(result == GL_FALSE || e3d_etest()) {
 		return false;
 	}

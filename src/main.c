@@ -15,6 +15,7 @@
 #include <SFML/Window.h>
 
 #include "main.h"
+#include "engine3d.h"
 
 static sfWindow *wnd;
 
@@ -72,7 +73,7 @@ int main()
 	env_time_t last, now;
 	uint64_t frames, fps;
 	struct object obj;
-	GLuint shader;
+	struct e3d_shader *shader;
 	GLuint uni_mod, uni_proj;
 	GLint bo;
 
@@ -94,6 +95,12 @@ int main()
 	sfWindow_Show(wnd, true);
 	sfWindow_SetFramerateLimit(wnd, 30);
 	sfWindow_UseVerticalSync(wnd, false);
+
+	if (!e3d_init()) {
+		printf("Cannot initialize 3D engine\n");
+		abort();
+	}
+
 	glViewport(0, 0, 200, 200);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
@@ -103,11 +110,29 @@ int main()
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	shader = shader_compile();
-	shader_link(shader);
-	uni_mod = glGetUniformLocation(shader, "modelview_matrix");
-	uni_proj = glGetUniformLocation(shader, "projection_matrix");
-	glUseProgram(shader);
+	shader = e3d_shader_new();
+	if (!shader) {
+		printf("Cannot create shader\n");
+		abort();
+	}
+	if (!e3d_shader_compile(shader, E3D_SHADER_VERT, "shader.vert")) {
+		printf("Cannot compile vertex shader\n");
+		abort();
+	}
+	if (!e3d_shader_compile(shader, E3D_SHADER_FRAG, "shader.frag")) {
+		printf("Cannot compile fragment shader\n");
+		abort();
+	}
+	glBindAttribLocation(shader->program, 0, "a_Vertex");
+	glBindAttribLocation(shader->program, 1, "a_Color");
+	glBindAttribLocation(shader->program, 2, "a_Normal");
+	if (!e3d_shader_link(shader)) {
+		printf("Cannot link shader\n");
+		abort();
+	}
+	uni_mod = glGetUniformLocation(shader->program, "modelview_matrix");
+	uni_proj = glGetUniformLocation(shader->program, "projection_matrix");
+	glUseProgram(shader->program);
 
 	set = sfWindow_GetSettings(wnd);
 	printf("%d %d %d\n", set.DepthBits, set.StencilBits, set.AntialiasingLevel);
@@ -170,6 +195,8 @@ int main()
 		checkerror();
 	}
 
+	e3d_shader_free(shader);
+	e3d_deinit();
 	sfWindow_Destroy(wnd);
 
 	return 0;
