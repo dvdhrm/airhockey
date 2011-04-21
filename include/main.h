@@ -15,6 +15,3 @@ struct object {
 
 extern void obj_grab(struct object *obj);
 extern void obj_draw(struct object *obj);
-
-extern GLuint shader_compile();
-extern void shader_link(GLuint shader);
