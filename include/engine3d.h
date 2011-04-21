@@ -68,3 +68,29 @@ extern void e3d_shader_free(struct e3d_shader *shader);
 
 extern bool e3d_shader_compile(struct e3d_shader *shader, enum e3d_shader_type type, const char *path);
 extern bool e3d_shader_link(struct e3d_shader *shader);
+
+static inline bool e3d_shader_attrib(struct e3d_shader *shader, GLuint loc, const GLchar *name)
+{
+	e3d_gl.BindAttribLocation(shader->program, loc, name);
+	if (e3d_etest())
+		return false;
+	return true;
+}
+
+static inline GLint e3d_shader_uniform(struct e3d_shader *shader, const GLchar *name)
+{
+	GLint ret;
+
+	ret = e3d_gl.GetUniformLocation(shader->program, name);
+	if (ret == -1 || e3d_etest())
+		return -1;
+	return ret;
+}
+
+static inline bool e3d_shader_use(struct e3d_shader *shader)
+{
+	e3d_gl.UseProgram(shader->program);
+	if (e3d_etest())
+		return false;
+	return true;
+}

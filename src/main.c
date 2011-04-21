@@ -123,16 +123,28 @@ int main()
 		printf("Cannot compile fragment shader\n");
 		abort();
 	}
-	glBindAttribLocation(shader->program, 0, "a_Vertex");
-	glBindAttribLocation(shader->program, 1, "a_Color");
-	glBindAttribLocation(shader->program, 2, "a_Normal");
+	if (!e3d_shader_attrib(shader, 0, "a_Vertex") ||
+		!e3d_shader_attrib(shader, 1, "a_Color") ||
+		!e3d_shader_attrib(shader, 2, "a_Normal")) {
+		printf("Cannot set shader attribute locations\n");
+		abort();
+	}
 	if (!e3d_shader_link(shader)) {
 		printf("Cannot link shader\n");
 		abort();
 	}
-	uni_mod = glGetUniformLocation(shader->program, "modelview_matrix");
-	uni_proj = glGetUniformLocation(shader->program, "projection_matrix");
-	glUseProgram(shader->program);
+	if (-1 == (uni_mod = e3d_shader_uniform(shader, "modelview_matrix"))) {
+		printf("Cannot get uniform location\n");
+		abort();
+	}
+	if (-1 == (uni_proj = e3d_shader_uniform(shader, "projection_matrix"))) {
+		printf("Cannot get uniform location\n");
+		abort();
+	}
+	if (!e3d_shader_use(shader)) {
+		printf("Cannot enable shader\n");
+		abort();
+	}
 
 	set = sfWindow_GetSettings(wnd);
 	printf("%d %d %d\n", set.DepthBits, set.StencilBits, set.AntialiasingLevel);
@@ -177,8 +189,8 @@ int main()
 		GLfloat modelview[16], projection[16];
 		glGetFloatv(GL_MODELVIEW_MATRIX, modelview);
 		glGetFloatv(GL_PROJECTION_MATRIX, projection);
-		glUniformMatrix4fv(uni_mod, 1, 0, modelview);
-		glUniformMatrix4fv(uni_proj, 1, 0, projection);
+		e3d_gl.UniformMatrix4fv(uni_mod, 1, 0, modelview);
+		e3d_gl.UniformMatrix4fv(uni_proj, 1, 0, projection);
 		obj_draw(&obj);
 
 		sfWindow_Display(wnd);
