@@ -18,6 +18,13 @@ struct ulog_dev {
 	char *prefix;
 };
 
+static struct ulog_dev default_log = {
+	.targets = &ulog_t_stderr,
+	.prefix = "",
+};
+
+#define DEF_LOG(log) log = (log ? log : &default_log)
+
 struct ulog_dev *ulog_new(const char *prefix)
 {
 	struct ulog_dev *log;
@@ -139,6 +146,8 @@ void ulog_log(struct ulog_dev *log, int sev, const char *msg)
 {
 	struct ulog_target *iter;
 
+	DEF_LOG(log);
+
 	iter = log->targets;
 	while (iter) {
 		if (sev <= iter->severity) {
@@ -155,6 +164,8 @@ void ulog_flog(struct ulog_dev *log, int sev, const char *format, ...)
 {
 	va_list list;
 
+	DEF_LOG(log);
+
 	va_start(list, format);
 	ulog_vlog(log, sev, format, list);
 	va_end(list);
@@ -163,6 +174,8 @@ void ulog_flog(struct ulog_dev *log, int sev, const char *format, ...)
 void ulog_vlog(struct ulog_dev *log, int sev, const char *format, va_list list)
 {
 	struct ulog_target *iter;
+
+	DEF_LOG(log);
 
 	iter = log->targets;
 	while (iter) {
