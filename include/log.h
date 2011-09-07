@@ -11,6 +11,7 @@
 struct ulog_dev;
 
 enum ulog_severity {
+	ULOG_INTERNAL,
 	ULOG_FATAL,
 	ULOG_ERROR,
 	ULOG_WARN,
@@ -40,6 +41,11 @@ extern void ulog_log(struct ulog_dev *log, int sev, const char *msg);
 extern void ulog_flog(struct ulog_dev *log, int sev, const char *format, ...);
 extern void ulog_vlog(struct ulog_dev *log, int sev, const char *format,
 								va_list list);
+
+extern int ulog_t_file_init(struct ulog_target *t);
+extern void ulog_t_file_destroy(struct ulog_target *t);
+extern void ulog_t_file_log(struct ulog_target *t, const char *m);
+extern void ulog_t_file_vlog(struct ulog_target *t, const char *f, va_list l);
 
 #define ULOG_TARGET_STDERR { \
 	.severity = ULOG_DEBUG, \

@@ -97,6 +97,17 @@ void ulog_remove_target(struct ulog_dev *log, struct ulog_target *target)
 	free(target);
 }
 
+static void sev_react(struct ulog_dev *log, int sev)
+{
+	if (sev == ULOG_INTERNAL)
+		return;
+
+	if (sev <= ULOG_FATAL) {
+		ulog_log(log, ULOG_INTERNAL, "Fatal Error\n");
+		abort();
+	}
+}
+
 void ulog_log(struct ulog_dev *log, int sev, const char *msg)
 {
 	struct ulog_target *iter;
@@ -108,6 +119,8 @@ void ulog_log(struct ulog_dev *log, int sev, const char *msg)
 			iter->log(iter, msg);
 		}
 	}
+
+	sev_react(log, sev);
 }
 
 void ulog_flog(struct ulog_dev *log, int sev, const char *format, ...)
@@ -130,24 +143,26 @@ void ulog_vlog(struct ulog_dev *log, int sev, const char *format, va_list list)
 			iter->vlog(iter, format, list);
 		}
 	}
+
+	sev_react(log, sev);
 }
 
-static int t_file_init(struct ulog_target *target)
+int ulog_t_file_init(struct ulog_target *target)
 {
 	return 0;
 }
 
-static void t_file_destroy(struct ulog_target *target)
+void ulog_t_file_destroy(struct ulog_target *target)
 {
 	return;
 }
 
-static void t_file_log(struct ulog_target *target, const char *msg)
+void ulog_t_file_log(struct ulog_target *target, const char *msg)
 {
 	fprintf(target->extra, "%s", msg);
 }
 
-static void t_file_vlog(struct ulog_target *target, const char *f, va_list list)
+void ulog_t_file_vlog(struct ulog_target *target, const char *f, va_list list)
 {
 	vfprintf(target->extra, f, list);
 }
