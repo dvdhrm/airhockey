@@ -4,6 +4,9 @@
  * Dedicated to the Public Domain
  */
 
+#ifndef ULOG_LOG_H
+#define ULOG_LOG_H
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,11 +50,6 @@ extern void ulog_t_file_destroy(struct ulog_target *t);
 extern void ulog_t_file_log(struct ulog_target *t, const char *m);
 extern void ulog_t_file_vlog(struct ulog_target *t, const char *f, va_list l);
 
-#define ULOG_TARGET_STDERR { \
-	.severity = ULOG_DEBUG, \
-	.extra = stderr, \
-	.init = t_file_init, \
-	.destroy = t_file_destroy, \
-	.log = t_file_log, \
-	.vlog = t_file_vlog, \
-};
+extern struct ulog_target ulog_t_stderr;
+
+#endif /* ULOG_LOG_H */

@@ -188,10 +188,18 @@ void ulog_t_file_destroy(struct ulog_target *target)
 
 void ulog_t_file_log(struct ulog_target *target, const char *msg)
 {
-	fprintf(target->extra, "%s", msg);
+	fprintf(target->extra ? target->extra : stderr, "%s", msg);
 }
 
 void ulog_t_file_vlog(struct ulog_target *target, const char *f, va_list list)
 {
-	vfprintf(target->extra, f, list);
+	vfprintf(target->extra ? target->extra : stderr, f, list);
 }
+
+struct ulog_target ulog_t_stderr = {
+	.severity = ULOG_INFO,
+	.init = ulog_t_file_init,
+	.destroy = ulog_t_file_destroy,
+	.log = ulog_t_file_log,
+	.vlog = ulog_t_file_vlog,
+};
