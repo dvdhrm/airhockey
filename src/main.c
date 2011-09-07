@@ -67,7 +67,7 @@ static void event_resize(const sfEvent *ev)
 
 int main()
 {
-	sfWindowSettings set;
+	sfContextSettings set;
 	sfVideoMode mode;
 	sfEvent ev;
 	env_time_t last, now;
@@ -85,7 +85,8 @@ int main()
 	mode.Height = 200;
 	mode.BitsPerPixel = 32;
 
-	wnd = sfWindow_Create(mode, "Test Window", sfTitlebar | sfClose | sfResize, set);
+	wnd = sfWindow_Create(mode, "Test Window", sfTitlebar | sfClose |
+								sfResize, &set);
 	if (!wnd) {
 		printf("Cannot create window\n");
 		abort();
@@ -94,7 +95,7 @@ int main()
 	sfWindow_SetActive(wnd, true);
 	sfWindow_Show(wnd, true);
 	sfWindow_SetFramerateLimit(wnd, 30);
-	sfWindow_UseVerticalSync(wnd, false);
+/*	sfWindow_UseVerticalSync(wnd, false);*/
 
 	if (!e3d_init()) {
 		printf("Cannot initialize 3D engine\n");
@@ -169,7 +170,7 @@ int main()
 	checkerror();
 
 	while (sfWindow_IsOpened(wnd)) {
-		while (sfWindow_GetEvent(wnd, &ev)) {
+		while (sfWindow_PollEvent(wnd, &ev)) {
 			if (ev.Type == sfEvtClosed)
 				event_close(wnd);
 			if (ev.Type == sfEvtResized)

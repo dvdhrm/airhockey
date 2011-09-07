@@ -9,7 +9,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include <SFML/Window/OpenGL.h>
+#include <SFML/OpenGL.h>
 
 #include "main.h"
 

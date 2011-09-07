@@ -8,7 +8,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <SFML/Window/OpenGL.h>
+#include <SFML/OpenGL.h>
 #include "engine3d.h"
 
 struct e3d_shader *e3d_shader_new()

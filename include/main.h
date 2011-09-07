@@ -6,7 +6,7 @@
 
 #include <stdlib.h>
 
-#include <SFML/Window/OpenGL.h>
+#include <SFML/OpenGL.h>
 
 struct object {
 	GLuint bufs[4];
