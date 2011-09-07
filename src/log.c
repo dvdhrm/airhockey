@@ -108,6 +108,33 @@ static void sev_react(struct ulog_dev *log, int sev)
 	}
 }
 
+static void sev_print(struct ulog_target *target, int sev)
+{
+	const char *str;
+
+	switch (sev) {
+		case ULOG_FATAL:
+			str = "(FATAL) ";
+			break;
+		case ULOG_ERROR:
+			str = "(ERROR) ";
+			break;
+		case ULOG_WARN:
+			str = "(WARNING) ";
+			break;
+		case ULOG_INFO:
+			str = "(INFO) ";
+			break;
+		case ULOG_DEBUG:
+			str = "(DEBUG) ";
+			break;
+		default:
+			str = "";
+	}
+
+	target->log(target, str);
+}
+
 void ulog_log(struct ulog_dev *log, int sev, const char *msg)
 {
 	struct ulog_target *iter;
@@ -115,6 +142,7 @@ void ulog_log(struct ulog_dev *log, int sev, const char *msg)
 	iter = log->targets;
 	while (iter) {
 		if (sev <= iter->severity) {
+			sev_print(iter, sev);
 			iter->log(iter, log->prefix);
 			iter->log(iter, msg);
 		}
@@ -139,6 +167,7 @@ void ulog_vlog(struct ulog_dev *log, int sev, const char *format, va_list list)
 	iter = log->targets;
 	while (iter) {
 		if (sev <= iter->severity) {
+			sev_print(iter, sev);
 			iter->log(iter, log->prefix);
 			iter->vlog(iter, format, list);
 		}
