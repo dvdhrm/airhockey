@@ -155,6 +155,7 @@ void ulog_log(struct ulog_dev *log, int sev, const char *msg)
 			iter->log(iter, log->prefix);
 			iter->log(iter, msg);
 		}
+		iter = iter->next;
 	}
 
 	sev_react(log, sev);
@@ -184,6 +185,7 @@ void ulog_vlog(struct ulog_dev *log, int sev, const char *format, va_list list)
 			iter->log(iter, log->prefix);
 			iter->vlog(iter, format, list);
 		}
+		iter = iter->next;
 	}
 
 	sev_react(log, sev);

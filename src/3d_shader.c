@@ -8,21 +8,31 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <SFML/OpenGL.h>
-#include "engine3d.h"
 
-struct e3d_shader *e3d_shader_new()
+#include <SFML/OpenGL.h>
+
+#include "engine3d.h"
+#include "main.h"
+
+struct e3d_shader {
+	GLuint program;
+};
+
+static struct e3d_shader *create_shader()
 {
 	struct e3d_shader *shader;
 	GLuint program;
 
-	program = e3d_gl.CreateProgram();
-	if (!program || e3d_etest())
+	program = E3D(glCreateProgram());
+	if (!program) {
+		e3d_flog(ULOG_DEBUG, "Shader: Cannot create GL program\n");
 		return NULL;
+	}
 
 	shader = malloc(sizeof(*shader));
 	if (!shader) {
-		e3d_gl.DeleteProgram(program);
+		e3d_flog(ULOG_DEBUG, "Shader: Cannot allocate memory\n");
+		E3D(glDeleteProgram(program));
 		return NULL;
 	}
 
@@ -30,104 +40,130 @@ struct e3d_shader *e3d_shader_new()
 	return shader;
 }
 
-void e3d_shader_free(struct e3d_shader *shader)
+static void free_shader(struct e3d_shader *shader)
 {
-	e3d_gl.DeleteProgram(shader->program);
+	E3D(glDeleteProgram(shader->program));
 	free(shader);
 }
 
-/* loads a file into a string, returns string length or 0 on failure */
-static GLint load_file(const char *file, GLchar **out) {
-	FILE *ffile;
-	long int size, lsize;
-	char *buf;
-
-	ffile = fopen(file, "rb");
-	if(!ffile)
-		return 0;
-
-	fseek(ffile, 0, SEEK_END);
-	size = ftell(ffile);
-	if (size < 1) {
-		fclose(ffile);
-		return 0;
-	}
-	rewind(ffile);
-
-	buf = malloc(size + 1);
-	if (!buf) {
-		fclose(ffile);
-		return 0;
-	}
-	if((lsize = fread(buf, 1, size, ffile)) != size) {
-		free(buf);
-		fclose(ffile);
-		return 0;
-	}
-	buf[size] = 0;
-
-	*out = buf;
-
-	fclose(ffile);
-	return size;
-}
-
-bool e3d_shader_compile(struct e3d_shader *shader, enum e3d_shader_type type, const char *path)
+static int compile_shader(struct e3d_shader *shader, GLint type,
+							const char *path)
 {
+	int ret;
+	char *out;
+	size_t size;
+	GLuint obj;
 	GLint result;
-	GLuint shaderobj;
 	GLchar *vsh;
 	GLint vnum;
 
-	switch (type) {
-		case E3D_SHADER_VERT:
-			shaderobj = e3d_gl.CreateShader(GL_VERTEX_SHADER);
-			break;
-		case E3D_SHADER_FRAG:
-			shaderobj = e3d_gl.CreateShader(GL_FRAGMENT_SHADER);
-			break;
-		default:
-			return false;
+	obj = E3D(glCreateShader(type));
+	if (!obj)
+		return -EINVAL;
+
+	ret = misc_load_file(path, &out, &size);
+	if (ret) {
+		e3d_flog(ULOG_DEBUG, "Shader: Cannot load shader file\n");
+		E3D(glDeleteShader(obj));
+		return ret;
 	}
 
-	if (!shaderobj || e3d_etest())
-		return false;
+	vsh = out;
+	vnum = size;
 
-	vnum = load_file(path, &vsh);
-	if (vnum < 1) {
-		e3d_gl.DeleteShader(shaderobj);
-		return false;
-	}
-
-	e3d_gl.ShaderSource(shaderobj, 1, (const GLchar**)&vsh, &vnum);
-	e3d_gl.CompileShader(shaderobj);
-	e3d_gl.GetShaderiv(shaderobj, GL_COMPILE_STATUS, &result);
-	if(result == GL_FALSE || e3d_etest()) {
-		free(vsh);
-		e3d_gl.DeleteShader(shaderobj);
-		return false;
-	}
+	E3D(glShaderSource(obj, 1, (const GLchar**)&vsh, &vnum));
+	E3D(glCompileShader(obj));
+	E3D(glGetShaderiv(obj, GL_COMPILE_STATUS, &result));
 	free(vsh);
 
-	/* Attach shader to program file and then mark shader for deletion. It gets
-	 * deleted when it is detached from every program.
-	 */
-	e3d_gl.AttachShader(shader->program, shaderobj);
-	e3d_gl.DeleteShader(shaderobj);
-	if (e3d_etest())
-		return false;
+	if (result == GL_FALSE) {
+		e3d_flog(ULOG_DEBUG, "Shader: Cannot compile shader\n");
+		E3D(glDeleteShader(obj));
+		return -EINVAL;
+	}
 
-	return true;
+	/*
+	 * Attach shader to program file and then mark shader for deletion.
+	 * It gets deleted when it is detached from every program.
+	 */
+	E3D(glAttachShader(shader->program, obj));
+	E3D(glDeleteShader(obj));
+
+	return 0;
 }
 
-bool e3d_shader_link(struct e3d_shader *shader)
+static int link_shader(struct e3d_shader *shader)
 {
 	GLint result;
 
-	e3d_gl.LinkProgram(shader->program);
-	e3d_gl.GetProgramiv(shader->program, GL_LINK_STATUS, &result);
-	if(result == GL_FALSE || e3d_etest()) {
-		return false;
+	E3D(glLinkProgram(shader->program));
+	E3D(glGetProgramiv(shader->program, GL_LINK_STATUS, &result));
+	if (result == GL_FALSE)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int init_debug_shader(struct e3d_shader *shader)
+{
+	int ret;
+
+	ret = compile_shader(shader, GL_VERTEX_SHADER, "./shader/debug.vert");
+	if (ret)
+		return ret;
+	ret = compile_shader(shader, GL_FRAGMENT_SHADER, "./shader/debug.frag");
+	if (ret)
+		return ret;
+
+	E3D(glBindAttribLocation(shader->program, 0, "a_Vertex"));
+	E3D(glBindAttribLocation(shader->program, 1, "a_Color"));
+	E3D(glBindAttribLocation(shader->program, 2, "a_Normal"));
+
+	ret = link_shader(shader);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+int e3d_shader_new(struct e3d_shader **shader, enum e3d_shader_type type)
+{
+	int ret;
+
+	*shader = create_shader();
+	if (!*shader)
+		return -ENOMEM;
+
+	switch (type) {
+		case E3D_SHADER_DEBUG:
+			ret = init_debug_shader(*shader);
+			break;
+		case E3D_SHADER_GOOCH:
+			ret = -EINVAL;
+			break;
+		default:
+			e3d_flog(ULOG_FATAL, "Shader: Invalid shader type\n");
 	}
-	return true;
+
+	if (ret) {
+		e3d_flog(ULOG_ERROR, "Shader: Cannot create shader\n");
+		free_shader(*shader);
+	}
+
+	return ret;
+}
+
+void e3d_shader_free(struct e3d_shader *shader)
+{
+	free_shader(shader);
+}
+
+GLint e3d_shader_uniform(struct e3d_shader *shader, const char *name)
+{
+	return E3D(glGetUniformLocation(shader->program, name));
+}
+
+void e3d_shader_use(struct e3d_shader *shader)
+{
+	E3D(glUseProgram(shader->program));
 }

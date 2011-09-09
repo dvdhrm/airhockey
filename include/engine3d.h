@@ -4,75 +4,74 @@
  * Dedicated to the Public Domain
  */
 
+#ifndef E3D_ENGINE3D_H
+#define E3D_ENGINE3D_H
+
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdlib.h>
 
 #include <SFML/OpenGL.h>
 
+#include "log.h"
+
 struct e3d_functions {
-	PFNGLCREATEPROGRAMPROC CreateProgram;
-	PFNGLDELETEPROGRAMPROC DeleteProgram;
-	PFNGLCREATESHADERPROC CreateShader;
-	PFNGLDELETESHADERPROC DeleteShader;
-	PFNGLSHADERSOURCEPROC ShaderSource;
-	PFNGLCOMPILESHADERPROC CompileShader;
-	PFNGLGETSHADERIVPROC GetShaderiv;
-	PFNGLATTACHSHADERPROC AttachShader;
-	PFNGLLINKPROGRAMPROC LinkProgram;
-	PFNGLGETPROGRAMIVPROC GetProgramiv;
-	PFNGLBINDATTRIBLOCATIONPROC BindAttribLocation;
-	PFNGLGETUNIFORMLOCATIONPROC GetUniformLocation;
-	PFNGLUSEPROGRAMPROC UseProgram;
-	PFNGLUNIFORMMATRIX4FVPROC UniformMatrix4fv;
-	PFNGLBINDBUFFERPROC BindBuffer;
-	PFNGLBUFFERDATAPROC BufferData;
-	PFNGLGENBUFFERSPROC GenBuffers;
-	PFNGLENABLEVERTEXATTRIBARRAYPROC EnableVertexAttribArray;
-	PFNGLVERTEXATTRIBPOINTERPROC VertexAttribPointer;
-	PFNGLDISABLEVERTEXATTRIBARRAYPROC DisableVertexAttribArray;
+	PFNGLCREATEPROGRAMPROC glCreateProgram;
+	PFNGLDELETEPROGRAMPROC glDeleteProgram;
+	PFNGLCREATESHADERPROC glCreateShader;
+	PFNGLDELETESHADERPROC glDeleteShader;
+	PFNGLSHADERSOURCEPROC glShaderSource;
+	PFNGLCOMPILESHADERPROC glCompileShader;
+	PFNGLGETSHADERIVPROC glGetShaderiv;
+	PFNGLATTACHSHADERPROC glAttachShader;
+	PFNGLLINKPROGRAMPROC glLinkProgram;
+	PFNGLGETPROGRAMIVPROC glGetProgramiv;
+	PFNGLBINDATTRIBLOCATIONPROC glBindAttribLocation;
+	PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation;
+	PFNGLUSEPROGRAMPROC glUseProgram;
+	PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv;
+	PFNGLBINDBUFFERPROC glBindBuffer;
+	PFNGLBUFFERDATAPROC glBufferData;
+	PFNGLGENBUFFERSPROC glGenBuffers;
+	PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
+	PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer;
+	PFNGLDISABLEVERTEXATTRIBARRAYPROC glDisableVertexAttribArray;
 };
 
 extern struct e3d_functions e3d_gl;
+#define E3D(func) (e3d_gl.func)
 
-extern void e3d_abort();
-extern void e3d_die(const char *format, ...);
-extern void e3d_vlog(const char *format, va_list list);
-extern void e3d_log(const char *format, ...);
-extern void e3d_init();
-extern void e3d_destroy();
 extern void e3d_etest();
+extern void e3d_set_log(struct ulog_dev *log);
+extern void e3d_flog(int sev, const char *format, ...);
 
-/*
- * Shaders
- */
+struct e3d_window;
 
-struct e3d_shader {
-	GLuint program;
-};
+extern struct e3d_window *e3d_window_init();
+extern void e3d_window_destroy(struct e3d_window *wnd);
+extern bool e3d_window_poll(struct e3d_window *wnd);
+extern int64_t e3d_window_elapsed(struct e3d_window *wnd);
+extern void e3d_window_frame(struct e3d_window *wnd);
+
+struct e3d_shader;
 
 enum e3d_shader_type {
-	E3D_SHADER_VERT,
-	E3D_SHADER_FRAG
+	E3D_SHADER_DEBUG,
+	E3D_SHADER_GOOCH
 };
 
-extern struct e3d_shader *e3d_shader_new();
+extern int e3d_shader_new(struct e3d_shader **shader,
+						enum e3d_shader_type type);
 extern void e3d_shader_free(struct e3d_shader *shader);
+extern GLint e3d_shader_uniform(struct e3d_shader *shader, const char *name);
+extern void e3d_shader_use(struct e3d_shader *shader);
 
-extern bool e3d_shader_compile(struct e3d_shader *shader, enum e3d_shader_type type, const char *path);
-extern bool e3d_shader_link(struct e3d_shader *shader);
+struct e3d_obj;
 
-static inline void e3d_shader_attrib(struct e3d_shader *shader, GLuint loc, const GLchar *name)
-{
-	e3d_gl.BindAttribLocation(shader->program, loc, name);
-}
+extern int e3d_obj_new(struct e3d_obj **obj, const char *file);
+extern void e3d_obj_free(struct e3d_obj *obj);
 
-static inline GLint e3d_shader_uniform(struct e3d_shader *shader, const GLchar *name)
-{
-	return e3d_gl.GetUniformLocation(shader->program, name);
-}
+extern void e3d_obj_grab(struct e3d_obj *obj);
+extern void e3d_obj_draw(struct e3d_obj *obj);
 
-static inline void e3d_shader_use(struct e3d_shader *shader)
-{
-	e3d_gl.UseProgram(shader->program);
-}
+#endif /* E3D_ENGINE3D_H */

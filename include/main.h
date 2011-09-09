@@ -4,14 +4,13 @@
  * Dedicated to the Public Domain
  */
 
+#ifndef MAIN_H
+#define MAIN_H
+
+#include <stdint.h>
 #include <stdlib.h>
 
-#include <SFML/OpenGL.h>
+extern int64_t misc_now();
+extern int misc_load_file(const char *file, char **buf, size_t *size);
 
-struct object {
-	GLuint bufs[4];
-	GLuint num;
-};
-
-extern void obj_grab(struct object *obj);
-extern void obj_draw(struct object *obj);
+#endif /* MAIN_H */
