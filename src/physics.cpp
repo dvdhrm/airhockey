@@ -4,6 +4,7 @@
  * Dedicated to the Public Domain
  */
 
+#include <assert.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -16,6 +17,13 @@ extern "C" {
 	#include "main.h"
 	#include "physics.h"
 }
+
+struct phys_body {
+	size_t ref;
+	btCollisionShape *shape;
+	btDefaultMotionState *motion;
+	btRigidBody *body;
+};
 
 struct phys_world {
 	struct ulog_dev *log;
@@ -61,6 +69,112 @@ void phys_world_free(struct phys_world *world)
 
 int phys_world_step(struct phys_world *world, int64_t step)
 {
-	world->world->stepSimulation(step / 1000000.0, 10, 1 / 60.0);
+	world->world->stepSimulation(step / 1000000.0, 10);
 	return 0;
+}
+
+void phys_world_add(struct phys_world *world, struct phys_body *body)
+{
+	phys_body_ref(body);
+	world->world->addRigidBody(body->body);
+}
+
+void phys_world_remove(struct phys_world *world, struct phys_body *body)
+{
+	world->world->removeRigidBody(body->body);
+	phys_body_unref(body);
+}
+
+struct phys_body *phys_body_new()
+{
+	struct phys_body *body;
+
+	body = (struct phys_body*)malloc(sizeof(*body));
+	if (!body)
+		return NULL;
+
+	memset(body, 0, sizeof(*body));
+
+	return phys_body_ref(body);
+}
+
+struct phys_body *phys_body_ref(struct phys_body *body)
+{
+	++body->ref;
+	assert(body->ref);
+	return body;
+}
+
+void phys_body_unref(struct phys_body *body)
+{
+	if (!body)
+		return;
+
+	assert(body->ref);
+
+	if (--body->ref)
+		return;
+
+	if (body->body)
+		delete body->body;
+	if (body->motion)
+		delete body->motion;
+	if (body->shape)
+		delete body->shape;
+
+	free(body);
+}
+
+struct phys_body *phys_body_new_ground()
+{
+	struct phys_body *body;
+
+	body = phys_body_new();
+	if (!body)
+		return NULL;
+
+	body->shape = new btStaticPlaneShape(btVector3(0, 0, 1), 0);
+	body->motion = new btDefaultMotionState(btTransform(
+			btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
+
+	btRigidBody::btRigidBodyConstructionInfo info(0, body->motion,
+						body->shape, btVector3(0,0,0));
+	body->body = new btRigidBody(info);
+
+	return body;
+}
+
+struct phys_body *phys_body_new_sphere()
+{
+	struct phys_body *body;
+
+	body = phys_body_new();
+	if (!body)
+		return NULL;
+
+	body->shape = new btSphereShape(1);
+	body->motion = new btDefaultMotionState(btTransform(
+			btQuaternion(0, 0, 0, 1), btVector3(0, 0, 50)));
+
+	btScalar mass = 1;
+	btVector3 inertia(0, 0, 0);
+	body->shape->calculateLocalInertia(mass, inertia);
+
+	btRigidBody::btRigidBodyConstructionInfo info(mass, body->motion,
+						body->shape, inertia);
+	body->body = new btRigidBody(info);
+
+	return body;
+}
+
+void phys_body_get_transform(struct phys_body *body, math_v3 origin)
+{
+	btTransform trans;
+	btVector3 o;
+
+	body->body->getMotionState()->getWorldTransform(trans);
+	o = trans.getOrigin();
+	origin[0] = o.getX();
+	origin[1] = o.getY();
+	origin[2] = o.getZ();
 }
