@@ -15,6 +15,7 @@
 #include "log.h"
 #include "main.h"
 #include "mathw.h"
+#include "physics.h"
 
 struct game {
 	struct ulog_dev *log;
@@ -23,6 +24,7 @@ struct game {
 	const struct e3d_shader_locations *loc;
 	int64_t tick_time;
 
+	struct phys_world *phys;
 	struct math_stack mstack;
 	struct e3d_eye eye;
 	struct e3d_shape *room;
@@ -60,8 +62,7 @@ static inline int game_render(struct game *game)
 
 static inline int game_step_physics(struct game *game, int64_t step)
 {
-	/*mWorld->stepSimulation(step / 1000000.0, 10);*/
-	return 0;
+	return phys_world_step(game->phys, step);
 }
 
 static inline int game_step_world(struct game *game)
@@ -148,10 +149,19 @@ int game_run(struct ulog_dev *log, struct e3d_window *wnd,
 	math_stack_init(&game.mstack);
 	game.room = room;
 
+	game.phys = phys_world_new(log);
+	if (!game.phys) {
+		ret = -ENOMEM;
+		goto err_math;
+	}
+
 	e3d_shader_use(shader);
 
 	ret = game_loop(&game);
 
+	phys_world_free(game.phys);
+
+err_math:
 	math_stack_destroy(&game.mstack);
 	e3d_eye_destroy(&game.eye);
 

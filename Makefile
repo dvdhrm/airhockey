@@ -6,14 +6,15 @@
 
 BINARY=airhockey.bin
 HEADERS=include/engine3d.h include/log.h include/main.h include/world.h
-HEADERS+=include/mathw.h
+HEADERS+=include/mathw.h include/physics.h
 
 SRCS=src/log.c src/main.c src/misc.c src/config.c src/game.c
 SRCS+=src/3d_main.c src/3d_shape.c src/3d_shader.c src/3d_window.c
-SRCS+=src/mathw.cpp
+SRCS+=src/mathw.cpp src/physics.cpp
 
 CFLAGS=-O0 -Wall -g -Iinclude
 LFLAGS=-Wall -lGLU -lcsfml-window -luconf -lcstr -lm -lplibsg -lplibul
+LFLAGS+=`pkg-config --libs bullet`
 
 OBJS=$(addsuffix .o, $(basename $(SRCS)))
 
@@ -28,6 +29,9 @@ src/%.o: src/%.c
 
 src/mathw.o: src/mathw.cpp
 	g++ -o $@ $< -c $(CFLAGS) -I/usr/include/plib
+
+src/physics.o: src/physics.cpp
+	g++ -o $@ $< -c $(CFLAGS) `pkg-config --cflags bullet`
 
 $(BINARY): $(OBJS)
 	gcc -o $@ $(OBJS) $(LFLAGS)
