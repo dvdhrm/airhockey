@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <time.h>
 
+#include <libcstr.h>
 #include <unistd.h>
 
 #include "main.h"
@@ -36,13 +37,13 @@ int64_t misc_now()
  * is stored in \out and the size in \size.
  * On success, the resulting string must be freed with free().
  */
-int misc_load_file(const char *file, char **out, size_t *size)
+int misc_load_file(const cstr *file, char **out, size_t *size)
 {
 	FILE *ffile;
 	ssize_t len;
 	char *buf;
 
-	ffile = fopen(file, "rb");
+	ffile = fopen(CSTR_CHAR(file), "rb");
 	if (!ffile)
 		return -errno;
 

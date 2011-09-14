@@ -12,7 +12,9 @@
 #include <SFML/Window.h>
 
 #include "engine3d.h"
+#include "log.h"
 #include "main.h"
+#include "mathw.h"
 
 struct e3d_window {
 	sfWindow *ctx;
@@ -26,20 +28,22 @@ struct e3d_window {
 
 static void event_close(struct e3d_window *wnd)
 {
-	e3d_flog(ULOG_DEBUG, "Window: Received close event\n");
+	ulog_flog(e3d_log, ULOG_DEBUG, "Window: Received close event on "
+							"window %p\n", wnd);
 	sfWindow_Close(wnd->ctx);
 }
 
 static void event_resize(struct e3d_window *wnd, const sfEvent *ev)
 {
-	e3d_flog(ULOG_DEBUG, "Window: Received resize event\n");
+	ulog_flog(e3d_log, ULOG_DEBUG, "Window: Received resize event on "
+							"window %p\n", wnd);
 	glViewport(0, 0, ev->Size.Width, ev->Size.Height);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	gluPerspective(52.0f, ev->Size.Width / ev->Size.Height, 1.0f, 100.0f);
 }
 
-struct e3d_window *e3d_window_init()
+struct e3d_window *e3d_window_new()
 {
 	struct e3d_window *wnd;
 	sfContextSettings set;
@@ -57,7 +61,8 @@ struct e3d_window *e3d_window_init()
 
 	wnd = malloc(sizeof(*wnd));
 	if (!wnd) {
-		e3d_flog(ULOG_DEBUG, "Window: Cannot allocate memory\n");
+		ulog_flog(e3d_log, ULOG_ERROR,
+					"Window: Cannot allocate memory\n");
 		return NULL;
 	}
 
@@ -67,14 +72,19 @@ struct e3d_window *e3d_window_init()
 	wnd->ctx = sfWindow_Create(mode, "Test Window", sfTitlebar | sfClose |
 								sfResize, &set);
 	if (!wnd->ctx) {
-		e3d_flog(ULOG_DEBUG, "Window: Cannot create window\n");
+		ulog_flog(e3d_log, ULOG_ERROR,
+				"Window: Cannot create window context\n");
 		goto err_wnd;
 	}
 
 	if (!sfWindow_SetActive(wnd->ctx, true)) {
-		e3d_flog(ULOG_ERROR, "Window: Cannot activate window\n");
+		ulog_flog(e3d_log, ULOG_ERROR,
+					"Window: Cannot activate window\n");
 		goto err_ctx;
 	}
+
+	ulog_flog(e3d_log, ULOG_DEBUG,
+		"Window: Creating window %p (frames %lu)\n", wnd, wnd->frames);
 
 	ev.Size.Width = mode.Width;
 	ev.Size.Height = mode.Height;
@@ -87,7 +97,6 @@ struct e3d_window *e3d_window_init()
 	sfWindow_SetFramerateLimit(wnd->ctx, 0);
 	sfWindow_Show(wnd->ctx, true);
 
-	e3d_flog(ULOG_DEBUG, "Window: Opened (frames: %lu)\n", wnd->frames);
 	return wnd;
 
 err_ctx:
@@ -97,10 +106,17 @@ err_wnd:
 	return NULL;
 }
 
-void e3d_window_destroy(struct e3d_window *wnd)
+void e3d_window_free(struct e3d_window *wnd)
 {
-	e3d_flog(ULOG_DEBUG, "Window: Destroyed (frames: %lu)\n", wnd->frames);
+	ulog_flog(e3d_log, ULOG_DEBUG, "Window: Destroying window %p "
+					"(frames %lu)\n", wnd, wnd->frames);
 	sfWindow_Destroy(wnd->ctx);
+	free(wnd);
+}
+
+void e3d_window_activate(struct e3d_window *wnd)
+{
+	sfWindow_SetActive(wnd->ctx, true);
 }
 
 bool e3d_window_poll(struct e3d_window *wnd)
@@ -140,11 +156,16 @@ void e3d_window_frame(struct e3d_window *wnd)
 	wnd->frames++;
 
 	if (wnd->fps_secs > 1000000) {
-		e3d_flog(ULOG_DEBUG, "Window: fps %lu (frames: %lu)\n",
+		ulog_flog(e3d_log, ULOG_DEBUG, "Window: fps %lu frames %lu\n",
 						wnd->fps_count, wnd->frames);
 		wnd->fps_count = 0;
 		wnd->fps_secs -= 1000000;
 	}
 
 	wnd->last_frame = misc_now();
+}
+
+void e3d_window_projection(const struct e3d_window *wnd, math_m4 m)
+{
+	glGetFloatv(GL_PROJECTION_MATRIX, (GLfloat*)m);
 }

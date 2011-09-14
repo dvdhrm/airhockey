@@ -9,8 +9,4 @@
 
 #include <stdlib.h>
 
-struct object {
-	int unused;
-};
-
 #endif /* WORLD_H */

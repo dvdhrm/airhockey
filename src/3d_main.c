@@ -17,7 +17,7 @@
 #include "engine3d.h"
 #include "log.h"
 
-static struct ulog_dev *def_log = NULL;
+struct ulog_dev *e3d_log = NULL;
 
 struct e3d_functions e3d_gl = {
 	.glCreateProgram = glCreateProgram,
@@ -42,6 +42,17 @@ struct e3d_functions e3d_gl = {
 	.glDisableVertexAttribArray = glDisableVertexAttribArray,
 };
 
+void e3d_init(struct ulog_dev *log)
+{
+	e3d_log = ulog_ref(log);
+}
+
+void e3d_destroy()
+{
+	ulog_unref(e3d_log);
+	e3d_log = NULL;
+}
+
 /*
  * This checks the OpenGL error queue for errors and prints a warning if an
  * error was encountered.
@@ -53,19 +64,5 @@ void e3d_etest() {
 	if (error == GL_NO_ERROR)
 		return;
 
-	e3d_flog(ULOG_WARN, "Warning: OpenGL error %d\n", error);
-}
-
-void e3d_set_log(struct ulog_dev *log)
-{
-	def_log = log;
-}
-
-void e3d_flog(int sev, const char *format, ...)
-{
-	va_list list;
-
-	va_start(list, format);
-	ulog_vlog(def_log, sev, format, list);
-	va_end(list);
+	ulog_flog(e3d_log, ULOG_WARN, "OpenGL error %d\n", error);
 }

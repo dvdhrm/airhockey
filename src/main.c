@@ -5,141 +5,139 @@
  */
 
 #include <errno.h>
+#include <signal.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
-#include <SFML/OpenGL.h>
-
-#include "main.h"
 #include "engine3d.h"
+#include "log.h"
+#include "main.h"
 
-static int create_shader(struct e3d_shader **shader, GLuint *uni_mod,
-							GLuint *uni_proj)
+sig_atomic_t terminating = 0;
+
+static struct ulog_dev *debug_log(const char *prefix)
 {
-	int ret = 0;
+	static struct ulog_target target;
+	static bool created;
+	struct ulog_dev *log;
 
-	ret = e3d_shader_new(shader, E3D_SHADER_DEBUG);
-	if (ret) {
-		ulog_flog(NULL, ULOG_DEBUG, "Cannot allocate shader\n");
-		goto err;
+	log = ulog_new(prefix);
+	if (!log)
+		return NULL;
+
+	if (!created) {
+		memcpy(&target, &ulog_t_stderr, sizeof(target));
+		target.severity = ULOG_DEBUG;
+		created = true;
 	}
 
-	*uni_mod = e3d_shader_uniform(*shader, "modelview_matrix");
-	if (*uni_mod == -1) {
-		ulog_flog(NULL, ULOG_DEBUG, "Cannot bind shader uniform\n");
-		ret = -EINVAL;
-		goto err_shader;
+	if (ulog_add_target(log, &target)) {
+		ulog_unref(log);
+		return NULL;
 	}
 
-	*uni_proj = e3d_shader_uniform(*shader, "projection_matrix");
-	if (*uni_proj == -1) {
-		ulog_flog(NULL, ULOG_DEBUG, "Cannot bind shader uniform\n");
-		ret = -EINVAL;
-		goto err_shader;
-	}
-
-	return 0;
-
-err_shader:
-	e3d_shader_free(*shader);
-err:
-	return ret;
+	return log;
 }
 
-static int run_window(struct e3d_window *wnd)
+static void signal_handler(int signum)
 {
-	int ret;
-	struct e3d_obj *obj;
-	struct e3d_shader *shader;
-	GLuint uni_mod, uni_proj;
+	terminating = 1;
+}
 
-	ret = create_shader(&shader, &uni_mod, &uni_proj);
-	if (ret) {
-		ulog_flog(NULL, ULOG_ERROR, "Cannot create shader\n");
-		return ret;
+static int signal_setup()
+{
+	struct sigaction act;
+	int ret, i;
+	int signals[] = { SIGINT, SIGHUP, SIGTERM, -1 };
+
+	memset(&act, 0, sizeof(act));
+	act.sa_handler = signal_handler;
+
+	for (i = 0; signals[i] != -1; ++i) {
+		ret = sigaction(signals[i], &act, NULL);
+		if (ret)
+			return -errno;
 	}
-
-	e3d_shader_use(shader);
-
-	ret = e3d_obj_new(&obj, NULL);
-	if (ret) {
-		ulog_flog(NULL, ULOG_ERROR, "Cannot create object\n");
-		e3d_shader_free(shader);
-		return ret;
-	}
-
-	e3d_obj_grab(obj);
-
-	ulog_flog(NULL, ULOG_INFO, "Starting window\n");
-
-	while (e3d_window_poll(wnd)) {
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		glEnable(GL_DEPTH_TEST);
-		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-		glMatrixMode(GL_MODELVIEW);
-		glLoadIdentity();
-		gluLookAt(8.0, 10.0, 10.0,
-				0.0, 0.0, 0.0,
-				0.0, 1.0, 0.0);
-		GLfloat modelview[16], projection[16];
-		glGetFloatv(GL_MODELVIEW_MATRIX, modelview);
-		glGetFloatv(GL_PROJECTION_MATRIX, projection);
-		E3D(glUniformMatrix4fv(uni_mod, 1, 0, modelview));
-		E3D(glUniformMatrix4fv(uni_proj, 1, 0, projection));
-		e3d_obj_draw(obj);
-
-		e3d_window_frame(wnd);
-		e3d_etest();
-	}
-
-	ulog_flog(NULL, ULOG_INFO, "Exiting window\n");
-
-	e3d_obj_free(obj);
-	e3d_shader_free(shader);
 
 	return 0;
+}
+
+static int init_subsystems()
+{
+	struct ulog_dev *log;
+	int ret;
+
+	ret = signal_setup();
+	if (ret)
+		return ret;
+
+	log = debug_log("Math: ");
+	if (!log)
+		return -ENOMEM;
+
+	math_init(log);
+	ulog_unref(log);
+
+	log = debug_log("E3D: ");
+	if (!log) {
+		math_destroy();
+		return -ENOMEM;
+	}
+
+	e3d_init(log);
+	ulog_unref(log);
+
+	ulog_flog(NULL, ULOG_INFO, "Creating subsystems\n");
+
+	return 0;
+}
+
+static void destroy_subsystems()
+{
+	ulog_flog(NULL, ULOG_INFO, "Destroying subsystems\n");
+	e3d_destroy();
+	math_destroy();
 }
 
 int main()
 {
 	int ret = 0;
-	struct ulog_dev *e3d_log;
-	struct ulog_target target;
 	struct e3d_window *wnd;
+	struct e3d_shader *shader;
+	struct ulog_dev *log;
 
 	ulog_flog(NULL, ULOG_INFO, "Starting\n");
 
-	e3d_log = ulog_new("E3D: ");
-	if (!e3d_log) {
-		ulog_flog(NULL, ULOG_ERROR, "Cannot allocate log-device\n");
-		ret = -ENOMEM;
+	ret = init_subsystems();
+	if (ret)
 		goto err;
-	}
 
-	memcpy(&target, &ulog_t_stderr, sizeof(target));
-	target.severity = ULOG_DEBUG;
-
-	ret = ulog_add_target(e3d_log, &target);
-	if (ret) {
-		ulog_flog(NULL, ULOG_ERROR, "Cannot add log target\n");
-		goto err_log;
-	}
-
-	e3d_set_log(e3d_log);
-
-	wnd = e3d_window_init();
+	wnd = e3d_window_new();
 	if (!wnd) {
-		ulog_flog(NULL, ULOG_ERROR, "Cannot create GL context\n");
 		ret = -1;
-		goto err_log;
+		goto err_subs;
 	}
 
-	ret = run_window(wnd);
+	ret = e3d_shader_new(&shader, E3D_SHADER_DEBUG);
+	if (ret)
+		goto err_wnd;
 
-	e3d_window_destroy(wnd);
-err_log:
-	ulog_free(e3d_log);
+	log = debug_log("Game: ");
+	if (!log) {
+		ret = -ENOMEM;
+		goto err_shader;
+	}
+
+	ret = game_run(log, wnd, shader);
+
+	ulog_unref(log);
+err_shader:
+	e3d_shader_free(shader);
+err_wnd:
+	e3d_window_free(wnd);
+err_subs:
+	destroy_subsystems();
 err:
 	if (ret)
 		ulog_flog(NULL, ULOG_ERROR, "Abort\n");

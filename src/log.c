@@ -13,13 +13,25 @@
 
 #include "log.h"
 
+struct ulog_target_link {
+	struct ulog_target_link *next;
+	struct ulog_target *target;
+};
+
 struct ulog_dev {
-	struct ulog_target *targets;
+	size_t ref;
+	struct ulog_target_link *targets;
 	char *prefix;
 };
 
+static struct ulog_target_link default_log_targets = {
+	.next = NULL,
+	.target = &ulog_t_stderr,
+};
+
 static struct ulog_dev default_log = {
-	.targets = &ulog_t_stderr,
+	.ref = 1,
+	.targets = &default_log_targets,
 	.prefix = "",
 };
 
@@ -40,13 +52,28 @@ struct ulog_dev *ulog_new(const char *prefix)
 	}
 
 	log->targets = NULL;
+	return ulog_ref(log);
+}
+
+struct ulog_dev *ulog_ref(struct ulog_dev *log)
+{
+	log->ref++;
+	assert(log->ref);
 	return log;
 }
 
-void ulog_free(struct ulog_dev *log)
+void ulog_unref(struct ulog_dev *log)
 {
+	if (!log)
+		return;
+
+	assert(log->ref);
+
+	if (--log->ref)
+		return;
+
 	while (log->targets)
-		ulog_remove_target(log, log->targets);
+		ulog_remove_target(log, log->targets->target);
 
 	free(log->prefix);
 	free(log);
@@ -54,54 +81,41 @@ void ulog_free(struct ulog_dev *log)
 
 int ulog_add_target(struct ulog_dev *log, struct ulog_target *target)
 {
-	struct ulog_target *t;
-	int ret;
+	struct ulog_target_link *link;
 
-	t = malloc(sizeof(*t));
-	if (!t)
+	link = malloc(sizeof(*link));
+	if (!link)
 		return -ENOMEM;
 
-	t->next = NULL;
-	t->severity = target->severity;
-	t->extra = target->extra;
-	t->init = target->init;
-	t->destroy = target->destroy;
-	t->log = target->log;
-	t->vlog = target->vlog;
-
-	ret = t->init(t);
-	if (ret) {
-		free(t);
-		return ret;
-	}
-
-	t->next = log->targets;
-	log->targets = t;
+	link->target = target->ref(target);
+	link->next = log->targets;
+	log->targets = link;
 
 	return 0;
 }
 
 void ulog_remove_target(struct ulog_dev *log, struct ulog_target *target)
 {
-	struct ulog_target *iter;
+	struct ulog_target_link *iter, *tmp;
 
 	assert(log->targets);
 
-	if (log->targets == target) {
-		log->targets = target->next;
+	if (log->targets->target == target) {
+		tmp = log->targets;
+		log->targets = log->targets->next;
 	} else {
 		iter = log->targets;
 		while (iter->next) {
-			if (iter->next == target) {
-				iter->next = target->next;
+			if (iter->next->target == target)
 				break;
-			}
 		}
+		assert(iter->next);
+		tmp = iter->next;
+		iter->next = iter->next->next;
 	}
 
-	target->next = NULL;
-	target->destroy(target);
-	free(target);
+	tmp->target->unref(target);
+	free(tmp);
 }
 
 static void sev_react(struct ulog_dev *log, int sev)
@@ -144,16 +158,16 @@ static void sev_print(struct ulog_target *target, int sev)
 
 void ulog_log(struct ulog_dev *log, int sev, const char *msg)
 {
-	struct ulog_target *iter;
+	struct ulog_target_link *iter;
 
 	DEF_LOG(log);
 
 	iter = log->targets;
 	while (iter) {
-		if (sev <= iter->severity) {
-			sev_print(iter, sev);
-			iter->log(iter, log->prefix);
-			iter->log(iter, msg);
+		if (sev <= iter->target->severity) {
+			sev_print(iter->target, sev);
+			iter->target->log(iter->target, log->prefix);
+			iter->target->log(iter->target, msg);
 		}
 		iter = iter->next;
 	}
@@ -174,16 +188,16 @@ void ulog_flog(struct ulog_dev *log, int sev, const char *format, ...)
 
 void ulog_vlog(struct ulog_dev *log, int sev, const char *format, va_list list)
 {
-	struct ulog_target *iter;
+	struct ulog_target_link *iter;
 
 	DEF_LOG(log);
 
 	iter = log->targets;
 	while (iter) {
-		if (sev <= iter->severity) {
-			sev_print(iter, sev);
-			iter->log(iter, log->prefix);
-			iter->vlog(iter, format, list);
+		if (sev <= iter->target->severity) {
+			sev_print(iter->target, sev);
+			iter->target->log(iter->target, log->prefix);
+			iter->target->vlog(iter->target, format, list);
 		}
 		iter = iter->next;
 	}
@@ -191,30 +205,31 @@ void ulog_vlog(struct ulog_dev *log, int sev, const char *format, va_list list)
 	sev_react(log, sev);
 }
 
-int ulog_t_file_init(struct ulog_target *target)
+struct ulog_target *t_file_ref(struct ulog_target *target)
 {
-	return 0;
+	return target;
 }
 
-void ulog_t_file_destroy(struct ulog_target *target)
+void t_file_unref(struct ulog_target *target)
 {
 	return;
 }
 
-void ulog_t_file_log(struct ulog_target *target, const char *msg)
+void t_file_log(struct ulog_target *target, const char *msg)
 {
 	fprintf(target->extra ? target->extra : stderr, "%s", msg);
 }
 
-void ulog_t_file_vlog(struct ulog_target *target, const char *f, va_list list)
+void t_file_vlog(struct ulog_target *target, const char *f, va_list list)
 {
 	vfprintf(target->extra ? target->extra : stderr, f, list);
 }
 
 struct ulog_target ulog_t_stderr = {
 	.severity = ULOG_INFO,
-	.init = ulog_t_file_init,
-	.destroy = ulog_t_file_destroy,
-	.log = ulog_t_file_log,
-	.vlog = ulog_t_file_vlog,
+	.extra = NULL,
+	.ref = t_file_ref,
+	.unref = t_file_unref,
+	.log = t_file_log,
+	.vlog = t_file_vlog,
 };

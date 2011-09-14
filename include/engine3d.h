@@ -7,13 +7,24 @@
 #ifndef E3D_ENGINE3D_H
 #define E3D_ENGINE3D_H
 
-#include <stdarg.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 
+#include <libcstr.h>
 #include <SFML/OpenGL.h>
 
 #include "log.h"
+#include "mathw.h"
+
+/*
+ * General OpenGL access
+ * This provides access to all opengl functions so we do not have to rely on
+ * OpenGL extension loading etc.
+ *
+ * It also allows to set the global log object that is used by all E3D
+ * functions.
+ */
 
 struct e3d_functions {
 	PFNGLCREATEPROGRAMPROC glCreateProgram;
@@ -41,19 +52,54 @@ struct e3d_functions {
 extern struct e3d_functions e3d_gl;
 #define E3D(func) (e3d_gl.func)
 
+extern struct ulog_dev *e3d_log;
+
+extern void e3d_init(struct ulog_dev *log);
+extern void e3d_destroy();
 extern void e3d_etest();
-extern void e3d_set_log(struct ulog_dev *log);
-extern void e3d_flog(int sev, const char *format, ...);
+
+/*
+ * OpenGL context and window creation
+ * This provides access to window creation, event polling and frame creation.
+ * OpenGL API does not allow multiple contexts to be active simultaneously, so
+ * you need to activate the window you want to work with and all other OpenGL
+ * stuff is directed to this window's context.
+ * Creating a new window automatically activates this window.
+ * Context between windows is shared so you may switch windows but still draw
+ * the same buffers/textures/etc.
+ */
 
 struct e3d_window;
 
-extern struct e3d_window *e3d_window_init();
-extern void e3d_window_destroy(struct e3d_window *wnd);
+extern struct e3d_window *e3d_window_new();
+extern void e3d_window_free(struct e3d_window *wnd);
+extern void e3d_window_activate(struct e3d_window *wnd);
+
 extern bool e3d_window_poll(struct e3d_window *wnd);
 extern int64_t e3d_window_elapsed(struct e3d_window *wnd);
 extern void e3d_window_frame(struct e3d_window *wnd);
+extern void e3d_window_projection(const struct e3d_window *wnd, math_m4 m);
+
+/*
+ * Shader loader
+ * This loads special AirHockey shaders and hides the shader compilation/linking
+ * behind this API.
+ */
 
 struct e3d_shader;
+
+struct e3d_shader_locations {
+	struct e3d_shader_attributes {
+		GLuint vertex;
+		GLuint color;
+		GLuint normal;
+	} attr;
+	struct e3d_shader_uniforms {
+		GLint proj_mat;
+		GLint mod_mat;
+		GLint nor_mat;
+	} uni;
+};
 
 enum e3d_shader_type {
 	E3D_SHADER_DEBUG,
@@ -63,15 +109,111 @@ enum e3d_shader_type {
 extern int e3d_shader_new(struct e3d_shader **shader,
 						enum e3d_shader_type type);
 extern void e3d_shader_free(struct e3d_shader *shader);
-extern GLint e3d_shader_uniform(struct e3d_shader *shader, const char *name);
+
+extern const struct e3d_shader_locations *e3d_shader_locations(
+					const struct e3d_shader *shader);
 extern void e3d_shader_use(struct e3d_shader *shader);
 
-struct e3d_obj;
+/*
+ * Primitive Shapes
+ * Primitives can be drawn with one call and thus are very fast. Every other
+ * shape is based on primitives. A primitive can contain several buffers, but
+ * only the available buffers are sent to the graphics engine.
+ * If an indicies buffer is available, the drawing function will use it to draw
+ * the primitive. Otherwise, the whole buffer is drawn as if the indicies where
+ * consecutive.
+ */
 
-extern int e3d_obj_new(struct e3d_obj **obj, const char *file);
-extern void e3d_obj_free(struct e3d_obj *obj);
+#define E3D_BUFFER_VERTEX	0x01
+#define E3D_BUFFER_COLOR	0x02
+#define E3D_BUFFER_NORMAL	0x04
 
-extern void e3d_obj_grab(struct e3d_obj *obj);
-extern void e3d_obj_draw(struct e3d_obj *obj);
+struct e3d_buffer {
+	size_t ref;
+	GLsizei num;
+	GLfloat (*vertex)[4];
+	GLfloat (*color)[4];
+	GLfloat (*normal)[4];
+	GLfloat buf[];
+};
+
+struct e3d_primitive {
+	size_t ref;
+	GLuint type;
+
+	struct e3d_buffer *buf;
+	GLsizei num;
+	GLuint ibuf[];
+};
+
+extern struct e3d_buffer *e3d_buffer_new(size_t size, uint8_t type);
+extern struct e3d_buffer *e3d_buffer_ref(struct e3d_buffer *buf);
+extern void e3d_buffer_unref(struct e3d_buffer *buf);
+
+extern struct e3d_primitive *e3d_primitive_new(size_t num);
+extern struct e3d_primitive *e3d_primitive_ref(struct e3d_primitive *prim);
+extern void e3d_primitive_unref(struct e3d_primitive *prim);
+
+extern void e3d_primitive_set_buffer(struct e3d_primitive *prim,
+							struct e3d_buffer *buf);
+extern void e3d_primitive_draw(struct e3d_primitive *prim,
+	const struct e3d_shader_locations *loc, struct math_stack *stack);
+
+/*
+ * Shapes
+ * Shapes are lists and trees of primitives. All primitives may be translated,
+ * scaled etc. relative to the others.
+ * Shapes allow to group several primitives together into one object and draw it
+ * with one call.
+ * Each primitive may be modified, moved, etc. during runtime so shapes are not
+ * limited to static objects, however, animations and similar should be handled
+ * on a higher level as this structure does not allow fast traversal and may be
+ * used multiple times in one scene for the same object.
+ * The e3d_alter structure is used for object translations/scaling/etc.
+ * Also rendering order of shapes is random, so a shape should always be a small
+ * entity which is considered one static and rigid object.
+ */
+
+struct e3d_shape {
+	size_t ref;
+	struct e3d_shape *next;
+	struct e3d_shape *childs;
+
+	math_m4 alter;
+	struct e3d_primitive *prim;
+};
+
+extern struct e3d_shape *e3d_shape_new();
+extern struct e3d_shape *e3d_shape_ref(struct e3d_shape *shape);
+extern void e3d_shape_unref(struct e3d_shape *shape);
+extern void e3d_shape_link(struct e3d_shape *parent, struct e3d_shape *shape);
+extern void e3d_shape_set_primitive(struct e3d_shape *shape,
+						struct e3d_primitive *prim);
+extern void e3d_shape_draw(const struct e3d_shape *shape,
+	const struct e3d_shader_locations *loc, struct math_stack *stack);
+
+/*
+ * Eye position
+ * The eye position allows to move the whole geometry and position the viewer
+ * inside the world. This could be done by moving the root object of the world,
+ * but to have a more structured API, a separate object is used.
+ */
+
+struct e3d_eye {
+	math_m4 matrix;
+};
+
+static inline void e3d_eye_init(struct e3d_eye *eye)
+{
+	math_m4_identity(eye->matrix);
+}
+
+static inline void e3d_eye_destroy(struct e3d_eye *eye)
+{
+}
+
+extern void e3d_eye_look_at(struct e3d_eye *eye, math_v3 pos, math_v3 at,
+								math_v3 up);
+extern void e3d_eye_apply(const struct e3d_eye *eye, math_m4 m);
 
 #endif /* E3D_ENGINE3D_H */
