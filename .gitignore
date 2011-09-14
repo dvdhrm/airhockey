@@ -1,1 +1,3 @@
-airhockey
+airhockey.bin
+*.o
+*.swp
