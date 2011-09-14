@@ -58,7 +58,7 @@ static inline int game_render(struct game *game)
 	return 0;
 }
 
-static inline int game_step_physic(struct game *game, int64_t step)
+static inline int game_step_physics(struct game *game, int64_t step)
 {
 	/*mWorld->stepSimulation(step / 1000000.0, 10);*/
 	return 0;
@@ -97,7 +97,7 @@ static int game_loop(struct game *game)
 			done = true;
 
 		phys_curr = misc_now();
-		ret = game_step_physic(game, phys_curr - phys_time);
+		ret = game_step_physics(game, phys_curr - phys_time);
 		if (ret)
 			done = true;
 		phys_time = phys_curr;
