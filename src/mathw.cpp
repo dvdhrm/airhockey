@@ -70,6 +70,16 @@ void math_v3_sub_dest(math_v3 dest, math_v3 src, math_v3 amount)
 	sgSubVec3(dest, src, amount);
 }
 
+void math_v4_copy(math_v4 dest, math_v4 src)
+{
+	sgCopyVec4(dest, src);
+}
+
+void math_v4_add(math_v4 dest, math_v4 src)
+{
+	sgAddVec4(dest, src);
+}
+
 void math_m4_copy(math_m4 dest, math_m4 src)
 {
 	sgCopyMat4(dest, src);

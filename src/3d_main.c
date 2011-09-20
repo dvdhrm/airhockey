@@ -34,6 +34,7 @@ struct e3d_functions e3d_gl = {
 	.glGetUniformLocation = glGetUniformLocation,
 	.glUseProgram = glUseProgram,
 	.glUniformMatrix4fv = glUniformMatrix4fv,
+	.glUniform4fv = glUniform4fv,
 	.glBindBuffer = glBindBuffer,
 	.glBufferData = glBufferData,
 	.glGenBuffers = glGenBuffers,

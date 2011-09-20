@@ -27,6 +27,9 @@ extern void math_v3_normalize(math_v3 v);
 extern void math_v3_product_dest(math_v3 dest, math_v3 a, math_v3 b);
 extern void math_v3_sub_dest(math_v3 dest, math_v3 src, math_v3 amount);
 
+extern void math_v4_copy(math_v4 dest, math_v4 src);
+extern void math_v4_add(math_v4 dest, math_v4 src);
+
 extern void math_m4_copy(math_m4 dest, math_m4 src);
 extern void math_m4_identity(math_m4 m);
 

@@ -26,7 +26,12 @@ extern int config_load(struct uconf_entry **root, const cstr *path);
 extern int config_load_shape(struct e3d_shape **shape,
 						const struct uconf_entry *e);
 
+struct shaders {
+	struct e3d_shader *debug;
+	struct e3d_shader *normals;
+};
+
 extern int game_run(struct ulog_dev *log, struct e3d_window *wnd,
-						struct e3d_shader *shader);
+						struct shaders *shaders);
 
 #endif /* MAIN_H */

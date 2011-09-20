@@ -118,9 +118,25 @@ static int link_shader(struct e3d_shader *shader)
 	return 0;
 }
 
+static const char *debug_attrs[E3D_A_NUM] = {
+	[E3D_A_VERTEX] = "position_in",
+	[E3D_A_COLOR] = "color_in",
+	[E3D_A_NORMAL] = "normal_in",
+};
+
+static const char *debug_unis[E3D_U_NUM] = {
+	[E3D_U_M_MAT] = "m_mat",
+	[E3D_U_M_MAT_IT] = "m_mat_it",
+	[E3D_U_MPE_MAT] = "mpe_mat",
+	[E3D_U_L_MAT] = "l_mat",
+	[E3D_U_L_MAT_IT] = "l_mat_it",
+	[E3D_U_CAM_POS] = "cam_pos",
+};
+
 static int init_debug_shader(struct e3d_shader *shader)
 {
 	int ret;
+	size_t i;
 	static const cstr vert = CSTR_STATIC("./shader/debug.vert");
 	static const cstr frag = CSTR_STATIC("./shader/debug.frag");
 
@@ -131,32 +147,82 @@ static int init_debug_shader(struct e3d_shader *shader)
 	if (ret)
 		return ret;
 
-	E3D(glBindAttribLocation(shader->program, 0, "a_Vertex"));
-	shader->loc.attr.vertex = 0;
-	E3D(glBindAttribLocation(shader->program, 1, "a_Color"));
-	shader->loc.attr.color = 1;
-	E3D(glBindAttribLocation(shader->program, 2, "a_Normal"));
-	shader->loc.attr.normal = 2;
+	for (i = 0; i < E3D_A_NUM; ++i) {
+		if (debug_attrs[i]) {
+			E3D(glBindAttribLocation(shader->program, i,
+							debug_attrs[i]));
+			shader->loc.attr[i] = i;
+		} else {
+			shader->loc.attr[i] = -1;
+		}
+	}
 
 	ret = link_shader(shader);
 	if (ret)
 		return ret;
 
-	shader->loc.uni.mod_mat = E3D(glGetUniformLocation(shader->program,
-							"modelview_matrix"));
-	if (shader->loc.uni.mod_mat == -1)
-		ulog_flog(e3d_log, ULOG_WARN, "Shader: Cannot find "
-					"modelview_matrix uniform location\n");
-	shader->loc.uni.proj_mat = E3D(glGetUniformLocation(shader->program,
-							"projection_matrix"));
-	if (shader->loc.uni.proj_mat == -1)
-		ulog_flog(e3d_log, ULOG_WARN, "Shader: Cannot find "
-				"projectionview_matrix uniform location\n");
-	shader->loc.uni.nor_mat = E3D(glGetUniformLocation(shader->program,
-							"normal_matrix"));
-	if (shader->loc.uni.nor_mat == -1)
-		ulog_flog(e3d_log, ULOG_WARN, "Shader: Cannot find "
-					"normal_matrix uniform location\n");
+	for (i = 0; i < E3D_U_NUM; ++i) {
+		if (debug_unis[i]) {
+			shader->loc.uni[i] = E3D(glGetUniformLocation(
+					shader->program, debug_unis[i]));
+			if (shader->loc.uni[i] == -1)
+				ulog_flog(e3d_log, ULOG_WARN, "Shader: Cannot "
+				"find %s uniform location\n", debug_unis[i]);
+		} else {
+			shader->loc.uni[i] = -1;
+		}
+	}
+
+	return 0;
+}
+
+static const char *normals_attrs[E3D_A_NUM] = {
+	[E3D_A_VERTEX] = "position_in",
+};
+
+static const char *normals_unis[E3D_U_NUM] = {
+	[E3D_U_MPE_MAT] = "mpe_mat",
+};
+
+static int init_normals_shader(struct e3d_shader *shader)
+{
+	int ret;
+	size_t i;
+	static const cstr vert = CSTR_STATIC("./shader/normals.vert");
+	static const cstr frag = CSTR_STATIC("./shader/normals.frag");
+
+	ret = compile_shader(shader, GL_VERTEX_SHADER, &vert);
+	if (ret)
+		return ret;
+	ret = compile_shader(shader, GL_FRAGMENT_SHADER, &frag);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < E3D_A_NUM; ++i) {
+		if (normals_attrs[i]) {
+			E3D(glBindAttribLocation(shader->program, i,
+							normals_attrs[i]));
+			shader->loc.attr[i] = i;
+		} else {
+			shader->loc.attr[i] = -1;
+		}
+	}
+
+	ret = link_shader(shader);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < E3D_U_NUM; ++i) {
+		if (normals_unis[i]) {
+			shader->loc.uni[i] = E3D(glGetUniformLocation(
+					shader->program, normals_unis[i]));
+			if (shader->loc.uni[i] == -1)
+				ulog_flog(e3d_log, ULOG_WARN, "Shader: Cannot "
+				"find %s uniform location\n", normals_unis[i]);
+		} else {
+			shader->loc.uni[i] = -1;
+		}
+	}
 
 	return 0;
 }
@@ -175,6 +241,10 @@ int e3d_shader_new(struct e3d_shader **out, enum e3d_shader_type type)
 		case E3D_SHADER_DEBUG:
 			ret = init_debug_shader(shader);
 			name = "debug";
+			break;
+		case E3D_SHADER_NORMALS:
+			ret = init_normals_shader(shader);
+			name = "normals";
 			break;
 		case E3D_SHADER_GOOCH:
 			ret = -EINVAL;
@@ -215,6 +285,4 @@ const struct e3d_shader_locations *e3d_shader_locations(
 void e3d_shader_use(struct e3d_shader *shader)
 {
 	E3D(glUseProgram(shader->program));
-	ulog_flog(e3d_log, ULOG_DEBUG, "Shader: Activating shader %p\n",
-									shader);
 }

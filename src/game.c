@@ -20,39 +20,52 @@
 struct game {
 	struct ulog_dev *log;
 	struct e3d_window *wnd;
-	struct e3d_shader *shader;
-	const struct e3d_shader_locations *loc;
+	struct shaders *shaders;
 	int64_t tick_time;
 
 	struct phys_world *phys;
-	struct math_stack mstack;
+	struct e3d_transform trans;
 	struct e3d_eye eye;
 	struct e3d_shape *room;
+	struct e3d_shape *test;
 };
 
 static inline int game_render(struct game *game)
 {
-	math_m4 projection;
 	math_v3 pos = { 8.0, 10.0, 10.0 };
 	math_v3 at = { 0.0, 0.0, 0.0 };
 	math_v3 ori = { 0.0, 0.0, 1.0 };
+	math_v3 l = { 0.0, 0.0, 3.0 };
+	math_v3 lup = { 0.0, 1.0, 0.0 };
+	const struct e3d_shader_locations *loc;
+	struct e3d_light light;
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glEnable(GL_DEPTH_TEST);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-	e3d_window_projection(game->wnd, projection);
-	E3D(glUniformMatrix4fv(game->loc->uni.proj_mat, 1, 0,
-							(GLfloat*)projection));
-
 	e3d_eye_look_at(&game->eye, pos, at, ori);
 
-	assert(math_stack_is_root(&game->mstack));
-	math_m4_identity(MATH_TIP(&game->mstack));
-	e3d_eye_apply(&game->eye, MATH_TIP(&game->mstack));
+	e3d_transform_reset(&game->trans);
 
-	e3d_shape_draw(game->room, game->loc, &game->mstack);
+	e3d_window_projection(game->wnd, MATH_TIP(&game->trans.proj_stack));
+	e3d_eye_apply(&game->eye, MATH_TIP(&game->trans.eye_stack));
+
+	e3d_light_init(&light);
+	e3d_light_look_at(&light, l, at, lup);
+
+	e3d_shader_use(game->shaders->debug);
+	loc = e3d_shader_locations(game->shaders->debug);
+	e3d_eye_supply(&game->eye, loc);
+	e3d_light_supply(&light, loc);
+	e3d_shape_draw(game->room, loc, &game->trans);
+	e3d_shape_draw(game->test, loc, &game->trans);
+
+	e3d_shader_use(game->shaders->normals);
+	loc = e3d_shader_locations(game->shaders->normals);
+	e3d_shape_draw_normals(game->room, loc, &game->trans);
+	e3d_shape_draw_normals(game->test, loc, &game->trans);
 
 	e3d_window_frame(game->wnd);
 	e3d_etest();
@@ -87,6 +100,12 @@ static int game_loop(struct game *game)
 	phys_time = misc_now();
 	last_tick = phys_time;
 
+	struct phys_body *ground = phys_body_new_ground();
+	struct phys_body *obj = phys_body_new_sphere();
+
+	phys_world_add(game->phys, ground);
+	phys_world_add(game->phys, obj);
+
 	ret = 0;
 	done = false;
 	while (!done) {
@@ -114,6 +133,11 @@ static int game_loop(struct game *game)
 				break;
 			}
 		}
+
+		math_v3 v;
+		phys_body_get_transform(obj, v);
+		math_m4_identity(game->test->alter);
+		math_m4_translatev(game->test->alter, v);
 	}
 
 	ulog_flog(game->log, ULOG_INFO, "Exiting mainloop\n");
@@ -122,10 +146,10 @@ static int game_loop(struct game *game)
 }
 
 int game_run(struct ulog_dev *log, struct e3d_window *wnd,
-						struct e3d_shader *shader)
+							struct shaders *shaders)
 {
 	int ret;
-	struct e3d_shape *room;
+	struct e3d_shape *room, *test;
 	struct uconf_entry *conf;
 	struct game game;
 
@@ -139,15 +163,25 @@ int game_run(struct ulog_dev *log, struct e3d_window *wnd,
 
 	uconf_entry_unref(conf);
 
+	ret = config_load(&conf, cstr_strdup(-1, "data/test.conf"));
+	if (ret)
+		ulog_flog(log, ULOG_FATAL, "Cannot load test config\n");
+
+	ret = config_load_shape(&test, conf);
+	if (ret)
+		ulog_flog(log, ULOG_FATAL, "Cannot load test shape\n");
+
+	uconf_entry_unref(conf);
+
 	memset(&game, 0, sizeof(game));
 	game.log = log;
 	game.wnd = wnd;
-	game.shader = shader;
-	game.loc = e3d_shader_locations(shader);
+	game.shaders = shaders;
 	game.tick_time = 20000;
 	e3d_eye_init(&game.eye);
-	math_stack_init(&game.mstack);
+	e3d_transform_init(&game.trans);
 	game.room = room;
+	game.test = test;
 
 	game.phys = phys_world_new(log);
 	if (!game.phys) {
@@ -155,14 +189,14 @@ int game_run(struct ulog_dev *log, struct e3d_window *wnd,
 		goto err_math;
 	}
 
-	e3d_shader_use(shader);
+	e3d_shader_use(shaders->debug);
 
 	ret = game_loop(&game);
 
 	phys_world_free(game.phys);
 
 err_math:
-	math_stack_destroy(&game.mstack);
+	e3d_transform_destroy(&game.trans);
 	e3d_eye_destroy(&game.eye);
 
 	e3d_shape_unref(room);

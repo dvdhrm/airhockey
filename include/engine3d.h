@@ -41,6 +41,7 @@ struct e3d_functions {
 	PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation;
 	PFNGLUSEPROGRAMPROC glUseProgram;
 	PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv;
+	PFNGLUNIFORM4FVPROC glUniform4fv;
 	PFNGLBINDBUFFERPROC glBindBuffer;
 	PFNGLBUFFERDATAPROC glBufferData;
 	PFNGLGENBUFFERSPROC glGenBuffers;
@@ -88,21 +89,31 @@ extern void e3d_window_projection(const struct e3d_window *wnd, math_m4 m);
 
 struct e3d_shader;
 
+enum e3d_shader_attribute_ids {
+	E3D_A_VERTEX,
+	E3D_A_COLOR,
+	E3D_A_NORMAL,
+	E3D_A_NUM
+};
+
+enum e3d_shader_uniform_ids {
+	E3D_U_M_MAT,
+	E3D_U_M_MAT_IT,
+	E3D_U_MPE_MAT,
+	E3D_U_L_MAT,
+	E3D_U_L_MAT_IT,
+	E3D_U_CAM_POS,
+	E3D_U_NUM
+};
+
 struct e3d_shader_locations {
-	struct e3d_shader_attributes {
-		GLuint vertex;
-		GLuint color;
-		GLuint normal;
-	} attr;
-	struct e3d_shader_uniforms {
-		GLint proj_mat;
-		GLint mod_mat;
-		GLint nor_mat;
-	} uni;
+	GLint attr[E3D_A_NUM];
+	GLint uni[E3D_U_NUM];
 };
 
 enum e3d_shader_type {
 	E3D_SHADER_DEBUG,
+	E3D_SHADER_NORMALS,
 	E3D_SHADER_GOOCH
 };
 
@@ -128,6 +139,12 @@ extern void e3d_shader_use(struct e3d_shader *shader);
 #define E3D_BUFFER_COLOR	0x02
 #define E3D_BUFFER_NORMAL	0x04
 
+struct e3d_transform {
+	struct math_stack mod_stack;
+	struct math_stack proj_stack;
+	struct math_stack eye_stack;
+};
+
 struct e3d_buffer {
 	size_t ref;
 	GLsizei num;
@@ -146,9 +163,14 @@ struct e3d_primitive {
 	GLuint ibuf[];
 };
 
+extern void e3d_transform_init(struct e3d_transform *transform);
+extern void e3d_transform_destroy(struct e3d_transform *transform);
+extern void e3d_transform_reset(struct e3d_transform *transform);
+
 extern struct e3d_buffer *e3d_buffer_new(size_t size, uint8_t type);
 extern struct e3d_buffer *e3d_buffer_ref(struct e3d_buffer *buf);
 extern void e3d_buffer_unref(struct e3d_buffer *buf);
+extern void e3d_buffer_generate_triangle_normals(struct e3d_buffer *buf);
 
 extern struct e3d_primitive *e3d_primitive_new(size_t num);
 extern struct e3d_primitive *e3d_primitive_ref(struct e3d_primitive *prim);
@@ -157,7 +179,9 @@ extern void e3d_primitive_unref(struct e3d_primitive *prim);
 extern void e3d_primitive_set_buffer(struct e3d_primitive *prim,
 							struct e3d_buffer *buf);
 extern void e3d_primitive_draw(struct e3d_primitive *prim,
-	const struct e3d_shader_locations *loc, struct math_stack *stack);
+	const struct e3d_shader_locations *loc, struct e3d_transform *trans);
+extern void e3d_primitive_draw_normals(struct e3d_primitive *prim,
+	const struct e3d_shader_locations *loc, struct e3d_transform *trans);
 
 /*
  * Shapes
@@ -190,21 +214,30 @@ extern void e3d_shape_link(struct e3d_shape *parent, struct e3d_shape *shape);
 extern void e3d_shape_set_primitive(struct e3d_shape *shape,
 						struct e3d_primitive *prim);
 extern void e3d_shape_draw(const struct e3d_shape *shape,
-	const struct e3d_shader_locations *loc, struct math_stack *stack);
+	const struct e3d_shader_locations *loc, struct e3d_transform *trans);
+extern void e3d_shape_draw_normals(const struct e3d_shape *shape,
+	const struct e3d_shader_locations *loc, struct e3d_transform *trans);
 
 /*
  * Eye position
  * The eye position allows to move the whole geometry and position the viewer
  * inside the world. This could be done by moving the root object of the world,
  * but to have a more structured API, a separate object is used.
+ * This also allows to have the world class only operate in world space and not
+ * be confused by eye space.
  */
 
 struct e3d_eye {
+	math_v4 position;
 	math_m4 matrix;
 };
 
 static inline void e3d_eye_init(struct e3d_eye *eye)
 {
+	eye->position[0] = 0.0f;
+	eye->position[1] = 0.0f;
+	eye->position[2] = 0.0f;
+	eye->position[3] = 1.0f;
 	math_m4_identity(eye->matrix);
 }
 
@@ -215,5 +248,28 @@ static inline void e3d_eye_destroy(struct e3d_eye *eye)
 extern void e3d_eye_look_at(struct e3d_eye *eye, math_v3 pos, math_v3 at,
 								math_v3 up);
 extern void e3d_eye_apply(const struct e3d_eye *eye, math_m4 m);
+extern void e3d_eye_supply(const struct e3d_eye *eye,
+					const struct e3d_shader_locations *loc);
+
+/*
+ * Lights
+ * Each world can contain several lights. The number of positioned lights is
+ * limited and most special lights exist only once in a scene.
+ */
+
+struct e3d_light {
+	math_m4 matrix;
+};
+
+extern void e3d_light_init(struct e3d_light *light);
+
+static inline void e3d_light_destroy(struct e3d_light *light)
+{
+}
+
+extern void e3d_light_look_at(struct e3d_light *light, math_v3 pos, math_v3 at,
+								math_v3 up);
+extern void e3d_light_supply(const struct e3d_light *light,
+					const struct e3d_shader_locations *loc);
 
 #endif /* E3D_ENGINE3D_H */

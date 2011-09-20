@@ -364,7 +364,6 @@ static int load_buffer(struct e3d_buffer **buf, const struct uconf_entry *e)
 			type |= E3D_BUFFER_COLOR;
 		} else if (cstr_strcmp(iter->name, -1, "normal")) {
 			normal = iter;
-			type |= E3D_BUFFER_NORMAL;
 		} else {
 			ret = -EINVAL;
 		}
@@ -373,7 +372,7 @@ static int load_buffer(struct e3d_buffer **buf, const struct uconf_entry *e)
 			return ret;
 	}
 
-	new = e3d_buffer_new(num, type);
+	new = e3d_buffer_new(num, type | E3D_BUFFER_NORMAL);
 	if (!new)
 		return -ENOMEM;
 
@@ -391,6 +390,8 @@ static int load_buffer(struct e3d_buffer **buf, const struct uconf_entry *e)
 		ret = load_buffer_normal(new, normal);
 		if (ret)
 			goto err;
+	} else {
+		e3d_buffer_generate_triangle_normals(new);
 	}
 
 	*buf = e3d_buffer_ref(new);
