@@ -142,7 +142,7 @@ static int setup_world(struct world **world)
 	ret = world_new(&w);
 	if (ret)
 		return ret;
-	e3d_eye_look_at(&w->eye, (math_v3) { 8.0, 10.0, 10.0 },
+	e3d_eye_look_at(&w->eye, (math_v3) { 18.0, 15.0, 15.0 },
 						(math_v3) { 0.0, 0.0, 0.0 },
 						(math_v3) { 0.0, 0.0, 1.0 });
 	e3d_light_look_at(&w->light0, (math_v3) { 0.0, 0.0, 3.0 },
@@ -150,6 +150,12 @@ static int setup_world(struct world **world)
 						(math_v3) { 0.0, 1.0, 0.0 });
 
 	ret = setup_obj(&obj, &CSTR_CS("data/room.conf"));
+	if (ret)
+		goto err;
+	world_add(w, obj);
+	world_obj_unref(obj);
+
+	ret = setup_obj(&obj, &CSTR_CS("data/table.conf"));
 	if (ret)
 		goto err;
 	phys_body_set_shape_ground(obj->body);
