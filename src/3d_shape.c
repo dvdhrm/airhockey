@@ -353,7 +353,8 @@ void e3d_shape_set_primitive(struct e3d_shape *shape,
 }
 
 void e3d_shape_draw(const struct e3d_shape *shape,
-	const struct e3d_shader_locations *loc, struct e3d_transform *trans)
+	const struct e3d_shader_locations *loc, struct e3d_transform *trans,
+						e3d_shape_drawer drawer)
 {
 	const struct e3d_shape *iter;
 
@@ -361,44 +362,10 @@ void e3d_shape_draw(const struct e3d_shape *shape,
 	math_m4_mult(MATH_TIP(&trans->mod_stack), (void*)shape->alter);
 
 	if (shape->prim)
-		e3d_primitive_draw(shape->prim, loc, trans);
+		drawer(shape->prim, loc, trans);
 
 	for (iter = shape->childs; iter; iter = iter->next)
-		e3d_shape_draw(iter, loc, trans);
-
-	math_stack_pop(&trans->mod_stack);
-}
-
-void e3d_shape_draw_normals(const struct e3d_shape *shape,
-	const struct e3d_shader_locations *loc, struct e3d_transform *trans)
-{
-	const struct e3d_shape *iter;
-
-	math_stack_push(&trans->mod_stack);
-	math_m4_mult(MATH_TIP(&trans->mod_stack), (void*)shape->alter);
-
-	if (shape->prim)
-		e3d_primitive_draw_normals(shape->prim, loc, trans);
-
-	for (iter = shape->childs; iter; iter = iter->next)
-		e3d_shape_draw_normals(iter, loc, trans);
-
-	math_stack_pop(&trans->mod_stack);
-}
-
-void e3d_shape_draw_silhouette(const struct e3d_shape *shape,
-	const struct e3d_shader_locations *loc, struct e3d_transform *trans)
-{
-	const struct e3d_shape *iter;
-
-	math_stack_push(&trans->mod_stack);
-	math_m4_mult(MATH_TIP(&trans->mod_stack), (void*)shape->alter);
-
-	if (shape->prim)
-		e3d_primitive_draw_silhouette(shape->prim, loc, trans);
-
-	for (iter = shape->childs; iter; iter = iter->next)
-		e3d_shape_draw_silhouette(iter, loc, trans);
+		e3d_shape_draw(iter, loc, trans, drawer);
 
 	math_stack_pop(&trans->mod_stack);
 }

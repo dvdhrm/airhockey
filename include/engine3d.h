@@ -224,12 +224,13 @@ extern void e3d_shape_unref(struct e3d_shape *shape);
 extern void e3d_shape_link(struct e3d_shape *parent, struct e3d_shape *shape);
 extern void e3d_shape_set_primitive(struct e3d_shape *shape,
 						struct e3d_primitive *prim);
+
+typedef void (*e3d_shape_drawer) (struct e3d_primitive *prim,
+	const struct e3d_shader_locations *loc, struct e3d_transform *trans);
+
 extern void e3d_shape_draw(const struct e3d_shape *shape,
-	const struct e3d_shader_locations *loc, struct e3d_transform *trans);
-extern void e3d_shape_draw_normals(const struct e3d_shape *shape,
-	const struct e3d_shader_locations *loc, struct e3d_transform *trans);
-extern void e3d_shape_draw_silhouette(const struct e3d_shape *shape,
-	const struct e3d_shader_locations *loc, struct e3d_transform *trans);
+	const struct e3d_shader_locations *loc, struct e3d_transform *trans,
+						e3d_shape_drawer drawer);
 
 /*
  * Eye position
