@@ -194,6 +194,12 @@ void phys_body_get_transform(struct phys_body *body, math_v3 origin)
 	origin[2] = o.getZ();
 }
 
+void phys_body_unlink(struct phys_body *body)
+{
+	if (body->world)
+		phys_world_remove(body->world, body);
+}
+
 void phys_body_set_shape_none(struct phys_body *body)
 {
 	if (!body->body)
