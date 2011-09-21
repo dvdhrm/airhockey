@@ -10,6 +10,7 @@
 extern "C" {
 #endif
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -31,6 +32,7 @@ extern void phys_body_unref(struct phys_body *body);
 extern void phys_body_get_transform(struct phys_body *body, math_v3 origin);
 extern void phys_body_unlink(struct phys_body *body);
 
+extern bool phys_body_has_shape(struct phys_body *body);
 extern void phys_body_set_shape_none(struct phys_body *body);
 extern void phys_body_set_shape_ground(struct phys_body *body);
 extern void phys_body_set_shape_sphere(struct phys_body *body);
