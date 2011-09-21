@@ -75,11 +75,28 @@ extern void e3d_etest();
 
 struct e3d_window;
 
+enum e3d_event_type {
+	E3D_EV_KEY,
+	E3D_EV_NUM
+};
+
+struct e3d_event_key {
+	unsigned int code;
+	unsigned int value;
+};
+
+struct e3d_event {
+	unsigned int type;
+	union e3d_event_union {
+		struct e3d_event_key key;
+	} v;
+};
+
 extern struct e3d_window *e3d_window_new();
 extern void e3d_window_free(struct e3d_window *wnd);
 extern void e3d_window_activate(struct e3d_window *wnd);
 
-extern bool e3d_window_poll(struct e3d_window *wnd);
+extern int e3d_window_poll(struct e3d_window *wnd, struct e3d_event *out);
 extern int64_t e3d_window_elapsed(struct e3d_window *wnd);
 extern void e3d_window_frame(struct e3d_window *wnd);
 extern void e3d_window_projection(const struct e3d_window *wnd, math_m4 m);

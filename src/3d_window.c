@@ -4,6 +4,7 @@
  * Dedicated to the Public Domain
  */
 
+#include <errno.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -119,24 +120,52 @@ void e3d_window_activate(struct e3d_window *wnd)
 	sfWindow_SetActive(wnd->ctx, true);
 }
 
-bool e3d_window_poll(struct e3d_window *wnd)
+static int convert_event(const sfEvent *event, struct e3d_event *out)
+{
+	if (event->Type == sfEvtKeyPressed) {
+		out->type = E3D_EV_KEY;
+		out->v.key.code = event->Key.Code;
+		out->v.key.value = 1;
+		return 1;
+	} else if (event->Type == sfEvtKeyReleased) {
+		out->type = E3D_EV_KEY;
+		out->v.key.code = event->Key.Code;
+		out->v.key.value = 0;
+		return 1;
+	} else {
+		return -EAGAIN;
+	}
+}
+
+/*
+ * Polls for window events. Returns 0 if the window got closed. Returns negative
+ * error on failures and -EAGAIN if no new event can be read.
+ * Returns 1 if an event was stored into \out.
+ */
+int e3d_window_poll(struct e3d_window *wnd, struct e3d_event *out)
 {
 	sfEvent ev;
+	int ret;
 
 	if (!sfWindow_IsOpened(wnd->ctx))
-		return false;
+		return 0;
 
 	while (sfWindow_PollEvent(wnd->ctx, &ev)) {
-		if (ev.Type == sfEvtClosed)
+		if (ev.Type == sfEvtClosed) {
 			event_close(wnd);
-		else if (ev.Type == sfEvtResized)
+		} else if (ev.Type == sfEvtResized) {
 			event_resize(wnd, &ev);
+		} else {
+			ret = convert_event(&ev, out);
+			if (ret != -EAGAIN)
+				return ret;
+		}
 	}
 
 	if (!sfWindow_IsOpened(wnd->ctx))
-		return false;
+		return 0;
 
-	return true;
+	return -EAGAIN;
 }
 
 int64_t e3d_window_elapsed(struct e3d_window *wnd)

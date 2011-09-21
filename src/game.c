@@ -50,8 +50,16 @@ static inline int game_step_physics(struct game *game, int64_t step)
 
 static inline int game_step_world(struct game *game)
 {
-	if (!e3d_window_poll(game->wnd))
-		return -1;
+	struct e3d_event event;
+	int ret;
+
+	ret = e3d_window_poll(game->wnd, &event);
+	if (ret == -EAGAIN)
+		return 0;
+	if (ret < 0)
+		return ret;
+
+	/* handle event */
 
 	return 0;
 }
