@@ -45,7 +45,8 @@ struct phys_world *phys_world_new(struct ulog_dev *log)
 
 	memset(world, 0, sizeof(*world));
 
-	world->log = ulog_ref(log);
+	if (log)
+		world->log = ulog_ref(log);
 	world->broadphase = new btDbvtBroadphase();
 	world->coll_conf = new btDefaultCollisionConfiguration();
 	world->coll_disp = new btCollisionDispatcher(world->coll_conf);
