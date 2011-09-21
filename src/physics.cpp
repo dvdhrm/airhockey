@@ -247,7 +247,7 @@ void phys_body_set_shape_sphere(struct phys_body *body)
 {
 	phys_body_set_shape_none(body);
 
-	body->shape = new btSphereShape(1);
+	body->shape = new btSphereShape(0.5);
 	body->motion = new btDefaultMotionState(btTransform(
 				btQuaternion(0, 0, 0, 1), btVector3(0, 0, 50)));
 
