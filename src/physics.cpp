@@ -21,6 +21,8 @@ extern "C" {
 struct phys_body {
 	size_t ref;
 	struct phys_world *world;
+	struct phys_body *next;
+	struct phys_body *prev;
 
 	btCollisionShape *shape;
 	btDefaultMotionState *motion;
@@ -29,6 +31,7 @@ struct phys_body {
 
 struct phys_world {
 	struct ulog_dev *log;
+	struct phys_body *childs;
 
 	btBroadphaseInterface *broadphase;
 	btDefaultCollisionConfiguration *coll_conf;
@@ -62,6 +65,14 @@ struct phys_world *phys_world_new(struct ulog_dev *log)
 
 void phys_world_free(struct phys_world *world)
 {
+	struct phys_body *iter, *tmp;
+
+	for (iter = world->childs; iter; ) {
+		tmp = iter;
+		iter = iter->next;
+		phys_world_remove(world, tmp);
+	}
+
 	delete world->world;
 	delete world->solver;
 	delete world->coll_disp;
@@ -79,17 +90,36 @@ int phys_world_step(struct phys_world *world, int64_t step)
 void phys_world_add(struct phys_world *world, struct phys_body *body)
 {
 	assert(!body->world);
+	assert(!body->next);
+	assert(!body->prev);
 
 	phys_body_ref(body);
 	body->world = world;
+
+	body->next = world->childs;
+	if (body->next)
+		body->next->prev = body;
+	world->childs = body;
+
 	world->world->addRigidBody(body->body);
 }
 
 void phys_world_remove(struct phys_world *world, struct phys_body *body)
 {
 	assert(body->world == world);
+	assert(world->childs);
 
 	world->world->removeRigidBody(body->body);
+
+	if (body->prev)
+		body->prev->next = body->next;
+	else
+		world->childs = body->next;
+	if (body->next)
+		body->next->prev = body->prev;
+	body->next = NULL;
+	body->prev = NULL;
+
 	body->world = NULL;
 	phys_body_unref(body);
 }
@@ -133,6 +163,8 @@ void phys_body_unref(struct phys_body *body)
 
 	/* if refcount drops zero we cannot be linked to any world! */
 	assert(!body->world);
+	assert(!body->next);
+	assert(!body->prev);
 	free(body);
 }
 
