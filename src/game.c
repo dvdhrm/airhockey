@@ -145,7 +145,7 @@ static int setup_world(struct world **world)
 	e3d_eye_look_at(&w->eye, (math_v3) { 18.0, 15.0, 15.0 },
 						(math_v3) { 0.0, 0.0, 0.0 },
 						(math_v3) { 0.0, 0.0, 1.0 });
-	e3d_light_look_at(&w->light0, (math_v3) { 0.0, 0.0, 3.0 },
+	e3d_light_look_at(&w->light0, (math_v3) { 0.0, 0.0, 10.0 },
 						(math_v3) { 0.0, 0.0, 0.0 },
 						(math_v3) { 0.0, 1.0, 0.0 });
 

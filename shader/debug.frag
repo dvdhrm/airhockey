@@ -47,6 +47,17 @@ float super_ellipse_shape(int lnum)
 }
 
 /*
+ * The farer the light has to go the less shiny it is.
+ * This is a fairly simple algorithm to reduce ALU instructions.
+ */
+float distance_shape(int lnum)
+{
+	float depth = abs(position_l[lnum].z);
+
+	return 1.0 / (depth / 5.0);
+}
+
+/*
  * Compute single light
  */
 vec3 compute_light_single(int lnum)
@@ -60,7 +71,8 @@ vec3 compute_light_single(int lnum)
 	float NdotH = max(dot(N, H), 0.0);
 
 	float attenuation = 1.0;
-	attenuation = super_ellipse_shape(lnum);
+	attenuation *= super_ellipse_shape(lnum);
+	attenuation *= distance_shape(lnum);
 	float l0 = NdotL;
 	float l1 = NdotL;
 	float l2 = l1 * NdotH;
