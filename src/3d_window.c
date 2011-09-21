@@ -91,7 +91,7 @@ struct e3d_window *e3d_window_new()
 	ev.Type = sfEvtResized;
 	event_resize(wnd, &ev);
 
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	sfWindow_Display(wnd->ctx);
 	sfWindow_SetFramerateLimit(wnd->ctx, 0);

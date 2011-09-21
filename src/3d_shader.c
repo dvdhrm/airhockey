@@ -128,9 +128,12 @@ static const char *debug_unis[E3D_U_NUM] = {
 	[E3D_U_M_MAT] = "m_mat",
 	[E3D_U_M_MAT_IT] = "m_mat_it",
 	[E3D_U_MPE_MAT] = "mpe_mat",
-	[E3D_U_L_MAT] = "l_mat",
-	[E3D_U_L_MAT_IT] = "l_mat_it",
 	[E3D_U_CAM_POS] = "cam_pos",
+
+	[E3D_U_LIGHT0_ENABLED] = "lights[0].enabled",
+	[E3D_U_LIGHT0_COLOR] = "lights[0].color",
+	[E3D_U_LIGHT0_MAT] = "lights[0].mat",
+	[E3D_U_LIGHT0_MAT_IT] = "lights[0].mat_it",
 };
 
 static int init_debug_shader(struct e3d_shader *shader)
@@ -176,20 +179,21 @@ static int init_debug_shader(struct e3d_shader *shader)
 	return 0;
 }
 
-static const char *normals_attrs[E3D_A_NUM] = {
+static const char *simple_attrs[E3D_A_NUM] = {
 	[E3D_A_VERTEX] = "position_in",
 };
 
-static const char *normals_unis[E3D_U_NUM] = {
+static const char *simple_unis[E3D_U_NUM] = {
 	[E3D_U_MPE_MAT] = "mpe_mat",
+	[E3D_U_COLOR] = "color",
 };
 
-static int init_normals_shader(struct e3d_shader *shader)
+static int init_simple_shader(struct e3d_shader *shader)
 {
 	int ret;
 	size_t i;
-	static const cstr vert = CSTR_STATIC("./shader/normals.vert");
-	static const cstr frag = CSTR_STATIC("./shader/normals.frag");
+	static const cstr vert = CSTR_STATIC("./shader/simple.vert");
+	static const cstr frag = CSTR_STATIC("./shader/simple.frag");
 
 	ret = compile_shader(shader, GL_VERTEX_SHADER, &vert);
 	if (ret)
@@ -199,9 +203,9 @@ static int init_normals_shader(struct e3d_shader *shader)
 		return ret;
 
 	for (i = 0; i < E3D_A_NUM; ++i) {
-		if (normals_attrs[i]) {
+		if (simple_attrs[i]) {
 			E3D(glBindAttribLocation(shader->program, i,
-							normals_attrs[i]));
+							simple_attrs[i]));
 			shader->loc.attr[i] = i;
 		} else {
 			shader->loc.attr[i] = -1;
@@ -213,12 +217,12 @@ static int init_normals_shader(struct e3d_shader *shader)
 		return ret;
 
 	for (i = 0; i < E3D_U_NUM; ++i) {
-		if (normals_unis[i]) {
+		if (simple_unis[i]) {
 			shader->loc.uni[i] = E3D(glGetUniformLocation(
-					shader->program, normals_unis[i]));
+					shader->program, simple_unis[i]));
 			if (shader->loc.uni[i] == -1)
 				ulog_flog(e3d_log, ULOG_WARN, "Shader: Cannot "
-				"find %s uniform location\n", normals_unis[i]);
+				"find %s uniform location\n", simple_unis[i]);
 		} else {
 			shader->loc.uni[i] = -1;
 		}
@@ -242,8 +246,8 @@ int e3d_shader_new(struct e3d_shader **out, enum e3d_shader_type type)
 			ret = init_debug_shader(shader);
 			name = "debug";
 			break;
-		case E3D_SHADER_NORMALS:
-			ret = init_normals_shader(shader);
+		case E3D_SHADER_SIMPLE:
+			ret = init_simple_shader(shader);
 			name = "normals";
 			break;
 		case E3D_SHADER_GOOCH:

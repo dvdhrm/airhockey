@@ -248,6 +248,7 @@ void e3d_primitive_draw_normals(struct e3d_primitive *prim,
 	math_m4_mult(t_mat, MATH_TIP(&trans->mod_stack));
 	E3D(glUniformMatrix4fv(loc->uni[E3D_U_MPE_MAT], 1, 0,
 							(GLfloat*)t_mat));
+	E3D(glUniform4f(loc->uni[E3D_U_COLOR], 1.0, 0.1, 0.1, 1.0));
 
 	E3D(glBindBuffer(GL_ARRAY_BUFFER, 0));
 	E3D(glEnableVertexAttribArray(loc->attr[E3D_A_VERTEX]));
@@ -261,6 +262,37 @@ void e3d_primitive_draw_normals(struct e3d_primitive *prim,
 							GL_FALSE, 0, vertex));
 
 		glDrawArrays(GL_LINES, 0, 2);
+	}
+}
+
+void e3d_primitive_draw_silhouette(struct e3d_primitive *prim,
+	const struct e3d_shader_locations *loc, struct e3d_transform *trans)
+{
+	math_m4 t_mat;
+
+	if (!prim->buf || !prim->buf->vertex)
+		return;
+
+	/* modelview, projection and eye matrix combined */
+	math_m4_mult_dest(t_mat, MATH_TIP(&trans->proj_stack),
+						MATH_TIP(&trans->eye_stack));
+	math_m4_mult(t_mat, MATH_TIP(&trans->mod_stack));
+	E3D(glUniformMatrix4fv(loc->uni[E3D_U_MPE_MAT], 1, 0,
+							(GLfloat*)t_mat));
+	E3D(glUniform4f(loc->uni[E3D_U_COLOR], 0.0, 0.0, 0.0, 1.0));
+
+	E3D(glBindBuffer(GL_ARRAY_BUFFER, 0));
+	E3D(glEnableVertexAttribArray(loc->attr[E3D_A_VERTEX]));
+
+	E3D(glVertexAttribPointer(loc->attr[E3D_A_VERTEX], 4, GL_FLOAT,
+					GL_FALSE, 0, prim->buf->vertex));
+
+	if (!prim->num) {
+		glDrawArrays(prim->type, 0, prim->buf->num);
+	} else {
+		E3D(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
+		glDrawElements(prim->type, prim->num, GL_UNSIGNED_INT,
+								prim->ibuf);
 	}
 }
 
@@ -354,6 +386,23 @@ void e3d_shape_draw_normals(const struct e3d_shape *shape,
 	math_stack_pop(&trans->mod_stack);
 }
 
+void e3d_shape_draw_silhouette(const struct e3d_shape *shape,
+	const struct e3d_shader_locations *loc, struct e3d_transform *trans)
+{
+	const struct e3d_shape *iter;
+
+	math_stack_push(&trans->mod_stack);
+	math_m4_mult(MATH_TIP(&trans->mod_stack), (void*)shape->alter);
+
+	if (shape->prim)
+		e3d_primitive_draw_silhouette(shape->prim, loc, trans);
+
+	for (iter = shape->childs; iter; iter = iter->next)
+		e3d_shape_draw_silhouette(iter, loc, trans);
+
+	math_stack_pop(&trans->mod_stack);
+}
+
 /*
  * This is a free implementation of the gluLookAt() function. See the wiki at
  * opengl.org for details on the algorithm.
@@ -422,15 +471,17 @@ void e3d_light_look_at(struct e3d_light *light, math_v3 pos, math_v3 at,
 	look_at(light->matrix, pos, at, up);
 }
 
-void e3d_light_supply(const struct e3d_light *light,
+void e3d_light_supply(const struct e3d_light *light, size_t num,
 					const struct e3d_shader_locations *loc)
 {
 	math_m4 t_mat;
 
-	E3D(glUniformMatrix4fv(loc->uni[E3D_U_L_MAT], 1, 0,
+	E3D(glUniform1i(loc->uni[E3D_U_LIGHT0_ENABLED], 1));
+	E3D(glUniform3f(loc->uni[E3D_U_LIGHT0_COLOR], 1.0, 1.0, 1.0));
+	E3D(glUniformMatrix4fv(loc->uni[E3D_U_LIGHT0_MAT], 1, 0,
 							(void*)light->matrix));
 
 	math_m4_invert_dest(t_mat, (void*)light->matrix);
-	E3D(glUniformMatrix4fv(loc->uni[E3D_U_L_MAT_IT], 1, 0,
+	E3D(glUniformMatrix4fv(loc->uni[E3D_U_LIGHT0_MAT_IT], 1, 0,
 								(void*)t_mat));
 }

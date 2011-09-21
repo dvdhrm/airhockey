@@ -43,7 +43,11 @@ static inline int game_render(struct game *game)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	glDepthFunc(GL_LESS);
+	glCullFace(GL_BACK);
 
 	e3d_eye_look_at(&game->eye, pos, at, ori);
 
@@ -58,12 +62,27 @@ static inline int game_render(struct game *game)
 	e3d_shader_use(game->shaders->debug);
 	loc = e3d_shader_locations(game->shaders->debug);
 	e3d_eye_supply(&game->eye, loc);
-	e3d_light_supply(&light, loc);
+	e3d_light_supply(&light, 0, loc);
 	e3d_shape_draw(game->room, loc, &game->trans);
 	e3d_shape_draw(game->test, loc, &game->trans);
 
-	e3d_shader_use(game->shaders->normals);
-	loc = e3d_shader_locations(game->shaders->normals);
+	e3d_shader_use(game->shaders->simple);
+	loc = e3d_shader_locations(game->shaders->simple);
+
+	glLineWidth(5.0);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	glDepthFunc(GL_LEQUAL);
+	glCullFace(GL_FRONT);
+
+	e3d_shape_draw_silhouette(game->room, loc, &game->trans);
+	e3d_shape_draw_silhouette(game->test, loc, &game->trans);
+
+	e3d_shader_use(game->shaders->simple);
+	loc = e3d_shader_locations(game->shaders->simple);
+	glLineWidth(1.0);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	glDepthFunc(GL_LESS);
+	glCullFace(GL_BACK);
 	e3d_shape_draw_normals(game->room, loc, &game->trans);
 	e3d_shape_draw_normals(game->test, loc, &game->trans);
 

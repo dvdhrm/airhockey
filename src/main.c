@@ -108,7 +108,7 @@ static int init_shaders(struct shaders *shaders)
 	if (ret)
 		return ret;
 
-	ret = e3d_shader_new(&shaders->normals, E3D_SHADER_NORMALS);
+	ret = e3d_shader_new(&shaders->simple, E3D_SHADER_SIMPLE);
 	if (ret) {
 		e3d_shader_free(shaders->debug);
 		return ret;
@@ -119,7 +119,7 @@ static int init_shaders(struct shaders *shaders)
 
 static void destroy_shaders(struct shaders *shaders)
 {
-	e3d_shader_free(shaders->normals);
+	e3d_shader_free(shaders->simple);
 	e3d_shader_free(shaders->debug);
 }
 

@@ -42,6 +42,9 @@ struct e3d_functions {
 	PFNGLUSEPROGRAMPROC glUseProgram;
 	PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv;
 	PFNGLUNIFORM4FVPROC glUniform4fv;
+	PFNGLUNIFORM1IPROC glUniform1i;
+	PFNGLUNIFORM3FPROC glUniform3f;
+	PFNGLUNIFORM4FPROC glUniform4f;
 	PFNGLBINDBUFFERPROC glBindBuffer;
 	PFNGLBUFFERDATAPROC glBufferData;
 	PFNGLGENBUFFERSPROC glGenBuffers;
@@ -100,9 +103,15 @@ enum e3d_shader_uniform_ids {
 	E3D_U_M_MAT,
 	E3D_U_M_MAT_IT,
 	E3D_U_MPE_MAT,
-	E3D_U_L_MAT,
-	E3D_U_L_MAT_IT,
 	E3D_U_CAM_POS,
+
+	E3D_U_LIGHT0_ENABLED,
+	E3D_U_LIGHT0_COLOR,
+	E3D_U_LIGHT0_MAT,
+	E3D_U_LIGHT0_MAT_IT,
+
+	E3D_U_COLOR,
+
 	E3D_U_NUM
 };
 
@@ -113,7 +122,7 @@ struct e3d_shader_locations {
 
 enum e3d_shader_type {
 	E3D_SHADER_DEBUG,
-	E3D_SHADER_NORMALS,
+	E3D_SHADER_SIMPLE,
 	E3D_SHADER_GOOCH
 };
 
@@ -182,6 +191,8 @@ extern void e3d_primitive_draw(struct e3d_primitive *prim,
 	const struct e3d_shader_locations *loc, struct e3d_transform *trans);
 extern void e3d_primitive_draw_normals(struct e3d_primitive *prim,
 	const struct e3d_shader_locations *loc, struct e3d_transform *trans);
+extern void e3d_primitive_draw_silhouette(struct e3d_primitive *prim,
+	const struct e3d_shader_locations *loc, struct e3d_transform *trans);
 
 /*
  * Shapes
@@ -216,6 +227,8 @@ extern void e3d_shape_set_primitive(struct e3d_shape *shape,
 extern void e3d_shape_draw(const struct e3d_shape *shape,
 	const struct e3d_shader_locations *loc, struct e3d_transform *trans);
 extern void e3d_shape_draw_normals(const struct e3d_shape *shape,
+	const struct e3d_shader_locations *loc, struct e3d_transform *trans);
+extern void e3d_shape_draw_silhouette(const struct e3d_shape *shape,
 	const struct e3d_shader_locations *loc, struct e3d_transform *trans);
 
 /*
@@ -269,7 +282,7 @@ static inline void e3d_light_destroy(struct e3d_light *light)
 
 extern void e3d_light_look_at(struct e3d_light *light, math_v3 pos, math_v3 at,
 								math_v3 up);
-extern void e3d_light_supply(const struct e3d_light *light,
+extern void e3d_light_supply(const struct e3d_light *light, size_t num,
 					const struct e3d_shader_locations *loc);
 
 #endif /* E3D_ENGINE3D_H */

@@ -28,7 +28,7 @@ extern int config_load_shape(struct e3d_shape **shape,
 
 struct shaders {
 	struct e3d_shader *debug;
-	struct e3d_shader *normals;
+	struct e3d_shader *simple;
 };
 
 extern int game_run(struct ulog_dev *log, struct e3d_window *wnd,

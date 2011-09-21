@@ -15,13 +15,6 @@ struct light {
 
 	mat4 mat;			// world to light coordinate matrix
 	mat4 mat_it;			// same but inverse transpose
-
-	// shaping parameters
-	float se_width;
-	float se_height;
-	float se_width_edge;
-	float se_height_edge;
-	float se_roundness;
 };
 
 /*
@@ -44,19 +37,13 @@ varying vec4 color;		// color of vertex
  * Super ellipses allow to shape the light for almost any situation.
  * Takes as argument the light number \lnum and the position of the destination
  * \pos and returns the attenuation factor depending on the light shape.
+ *
+ * Currently disabled because my intel GMA does not support enough ALU
+ * instructions so we need to reduce the code size.
  */
 float super_ellipse_shape(int lnum)
 {
-	// project the point onto the z = 1 plane
-	vec3 pos = position_l[lnum];
-	vec2 ppos = abs(pos.xy / pos.z);
-
-	float h = lights[lnum].se_height;
-
-	float inner = (h * ppos.x) + (h * ppos.y);
-	float outer = h;
-
-	return 1.0;// - smoothstep(inner, outer, 1.0);
+	return 1.0;
 }
 
 /*
@@ -92,7 +79,7 @@ vec3 compute_light_single(int lnum)
 vec3 compute_lights(void)
 {
 	int i;
-	vec3 final = vec3(0.0, 0.0, 0.0);
+	vec3 final = vec3(color) * 0.1;
 
 	for (i = 0; i < light_num; ++i) {
 		if (lights[i].enabled) {

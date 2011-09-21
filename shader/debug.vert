@@ -15,13 +15,6 @@ struct light {
 
 	mat4 mat;			// world to light coordinate matrix
 	mat4 mat_it;			// same but inverse transpose
-
-	// shaping parameters
-	float se_width;
-	float se_height;
-	float se_width_edge;
-	float se_height_edge;
-	float se_roundness;
 };
 
 /*
