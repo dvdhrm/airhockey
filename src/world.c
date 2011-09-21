@@ -193,13 +193,24 @@ static void draw_obj(struct world_obj *obj,
 							e3d_shape_drawer drawer)
 {
 	struct world_obj *iter;
+	math_v3 pos;
 
 	assert(obj->world);
+
+	math_stack_push(&trans->mod_stack);
+	math_m4_mult(MATH_TIP(&trans->mod_stack), obj->alter);
+
+	if (obj->body && phys_body_has_shape(obj->body)) {
+		phys_body_get_transform(obj->body, pos);
+		math_m4_translatev(MATH_TIP(&trans->mod_stack), pos);
+	}
 
 	e3d_shape_draw(obj->shape, loc, trans, drawer);
 
 	for (iter = obj->first; iter; iter = iter->next)
 		draw_obj(iter, loc, trans, drawer);
+
+	math_stack_pop(&trans->mod_stack);
 }
 
 int world_new(struct world **world)
