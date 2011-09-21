@@ -43,4 +43,9 @@ extern void world_obj_link_first(struct world_obj *parent,
 extern int world_new(struct world **world);
 extern void world_free(struct world *world);
 
+static inline void world_add(struct world *world, struct world_obj *obj)
+{
+	world_obj_link_first(world->root, obj);
+}
+
 #endif /* WORLD_H */
