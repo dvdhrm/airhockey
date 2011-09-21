@@ -9,6 +9,7 @@
 
 #include <stdlib.h>
 #include "engine3d.h"
+#include "main.h"
 #include "mathw.h"
 #include "physics.h"
 
@@ -45,6 +46,8 @@ extern void world_obj_link_first(struct world_obj *parent,
 
 extern int world_new(struct world **world);
 extern void world_free(struct world *world);
+extern void world_draw(struct world *world, struct e3d_transform *trans,
+						struct shaders *shaders);
 
 static inline void world_add(struct world *world, struct world_obj *obj)
 {

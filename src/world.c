@@ -12,6 +12,7 @@
 #include <libcstr.h>
 
 #include "engine3d.h"
+#include "main.h"
 #include "mathw.h"
 #include "physics.h"
 #include "world.h"
@@ -187,6 +188,20 @@ void world_obj_link_first(struct world_obj *parent, struct world_obj *obj)
 		link_bodies(obj);
 }
 
+static void draw_obj(struct world_obj *obj,
+	const struct e3d_shader_locations *loc, struct e3d_transform *trans,
+							e3d_shape_drawer drawer)
+{
+	struct world_obj *iter;
+
+	assert(obj->world);
+
+	e3d_shape_draw(obj->shape, loc, trans, drawer);
+
+	for (iter = obj->first; iter; iter = iter->next)
+		draw_obj(iter, loc, trans, drawer);
+}
+
 int world_new(struct world **world)
 {
 	int ret;
@@ -230,4 +245,51 @@ void world_free(struct world *world)
 	world_obj_unref(world->root);
 	phys_world_free(world->phys);
 	free(world);
+}
+
+void world_draw(struct world *world, struct e3d_transform *trans,
+							struct shaders *shaders)
+{
+	const struct e3d_shader_locations *loc;
+
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+
+	e3d_eye_apply(&world->eye, MATH_TIP(&trans->eye_stack));
+
+	/* draw normal scene */
+	glLineWidth(1.0);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	glDepthFunc(GL_LESS);
+	glCullFace(GL_BACK);
+
+	e3d_shader_use(shaders->debug);
+	loc = e3d_shader_locations(shaders->debug);
+
+	e3d_eye_supply(&world->eye, loc);
+	e3d_light_supply(&world->light0, 0, loc);
+
+	draw_obj(world->root, loc, trans, e3d_primitive_draw);
+
+	/* draw silhouette edges */
+	glLineWidth(5.0);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	glDepthFunc(GL_LEQUAL);
+	glCullFace(GL_FRONT);
+
+	e3d_shader_use(shaders->simple);
+	loc = e3d_shader_locations(shaders->simple);
+
+	draw_obj(world->root, loc, trans, e3d_primitive_draw_silhouette);
+
+	/* draw normals */
+	glLineWidth(1.0);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	glDepthFunc(GL_LESS);
+	glCullFace(GL_BACK);
+
+	e3d_shader_use(shaders->simple);
+	loc = e3d_shader_locations(shaders->simple);
+
+	draw_obj(world->root, loc, trans, e3d_primitive_draw_normals);
 }
