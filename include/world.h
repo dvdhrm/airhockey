@@ -49,6 +49,11 @@ extern void world_free(struct world *world);
 extern void world_draw(struct world *world, struct e3d_transform *trans,
 						struct shaders *shaders);
 
+static inline int world_step_phys(struct world *world, int64_t step)
+{
+	return phys_world_step(world->phys, step);
+}
+
 static inline void world_add(struct world *world, struct world_obj *obj)
 {
 	world_obj_link_first(world->root, obj);
