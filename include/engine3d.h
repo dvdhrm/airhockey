@@ -122,8 +122,7 @@ struct e3d_shader_locations {
 
 enum e3d_shader_type {
 	E3D_SHADER_DEBUG,
-	E3D_SHADER_SIMPLE,
-	E3D_SHADER_GOOCH
+	E3D_SHADER_SIMPLE
 };
 
 extern int e3d_shader_new(struct e3d_shader **shader,

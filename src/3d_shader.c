@@ -250,10 +250,6 @@ int e3d_shader_new(struct e3d_shader **out, enum e3d_shader_type type)
 			ret = init_simple_shader(shader);
 			name = "normals";
 			break;
-		case E3D_SHADER_GOOCH:
-			ret = -EINVAL;
-			name = "gooch";
-			break;
 		default:
 			ulog_flog(e3d_log, ULOG_ERROR,
 					"Shader: Invalid shader type\n");
