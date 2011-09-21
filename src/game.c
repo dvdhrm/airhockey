@@ -119,8 +119,10 @@ static int game_loop(struct game *game)
 	phys_time = misc_now();
 	last_tick = phys_time;
 
-	struct phys_body *ground = phys_body_new_ground();
-	struct phys_body *obj = phys_body_new_sphere();
+	struct phys_body *ground = phys_body_new();
+	struct phys_body *obj = phys_body_new();
+	phys_body_set_shape_ground(ground);
+	phys_body_set_shape_sphere(obj);
 
 	phys_world_add(game->phys, ground);
 	phys_world_add(game->phys, obj);

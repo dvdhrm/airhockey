@@ -30,8 +30,9 @@ extern struct phys_body *phys_body_ref(struct phys_body *body);
 extern void phys_body_unref(struct phys_body *body);
 extern void phys_body_get_transform(struct phys_body *body, math_v3 origin);
 
-extern struct phys_body *phys_body_new_ground();
-extern struct phys_body *phys_body_new_sphere();
+extern void phys_body_set_shape_none(struct phys_body *body);
+extern void phys_body_set_shape_ground(struct phys_body *body);
+extern void phys_body_set_shape_sphere(struct phys_body *body);
 
 #ifdef __cplusplus
 }

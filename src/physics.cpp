@@ -87,6 +87,14 @@ int phys_world_step(struct phys_world *world, int64_t step)
 	return 0;
 }
 
+static inline void world_add(struct phys_world *world, struct phys_body *body)
+{
+	assert(body->world == world);
+	assert(body->body);
+
+	world->world->addRigidBody(body->body);
+}
+
 void phys_world_add(struct phys_world *world, struct phys_body *body)
 {
 	assert(!body->world);
@@ -101,7 +109,17 @@ void phys_world_add(struct phys_world *world, struct phys_body *body)
 		body->next->prev = body;
 	world->childs = body;
 
-	world->world->addRigidBody(body->body);
+	if (body->body)
+		world_add(world, body);
+}
+
+static inline void world_remove(struct phys_world *world,
+							struct phys_body *body)
+{
+	assert(body->world == world);
+	assert(body->body);
+
+	world->world->removeRigidBody(body->body);
 }
 
 void phys_world_remove(struct phys_world *world, struct phys_body *body)
@@ -109,7 +127,8 @@ void phys_world_remove(struct phys_world *world, struct phys_body *body)
 	assert(body->world == world);
 	assert(world->childs);
 
-	world->world->removeRigidBody(body->body);
+	if (body->body)
+		world_remove(world, body);
 
 	if (body->prev)
 		body->prev->next = body->next;
@@ -154,60 +173,13 @@ void phys_body_unref(struct phys_body *body)
 	if (--body->ref)
 		return;
 
-	if (body->body)
-		delete body->body;
-	if (body->motion)
-		delete body->motion;
-	if (body->shape)
-		delete body->shape;
-
 	/* if refcount drops zero we cannot be linked to any world! */
 	assert(!body->world);
 	assert(!body->next);
 	assert(!body->prev);
+
+	phys_body_set_shape_none(body);
 	free(body);
-}
-
-struct phys_body *phys_body_new_ground()
-{
-	struct phys_body *body;
-
-	body = phys_body_new();
-	if (!body)
-		return NULL;
-
-	body->shape = new btStaticPlaneShape(btVector3(0, 0, 1), 0);
-	body->motion = new btDefaultMotionState(btTransform(
-			btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
-
-	btRigidBody::btRigidBodyConstructionInfo info(0, body->motion,
-						body->shape, btVector3(0,0,0));
-	body->body = new btRigidBody(info);
-
-	return body;
-}
-
-struct phys_body *phys_body_new_sphere()
-{
-	struct phys_body *body;
-
-	body = phys_body_new();
-	if (!body)
-		return NULL;
-
-	body->shape = new btSphereShape(1);
-	body->motion = new btDefaultMotionState(btTransform(
-			btQuaternion(0, 0, 0, 1), btVector3(0, 0, 50)));
-
-	btScalar mass = 1;
-	btVector3 inertia(0, 0, 0);
-	body->shape->calculateLocalInertia(mass, inertia);
-
-	btRigidBody::btRigidBodyConstructionInfo info(mass, body->motion,
-						body->shape, inertia);
-	body->body = new btRigidBody(info);
-
-	return body;
 }
 
 void phys_body_get_transform(struct phys_body *body, math_v3 origin)
@@ -220,4 +192,60 @@ void phys_body_get_transform(struct phys_body *body, math_v3 origin)
 	origin[0] = o.getX();
 	origin[1] = o.getY();
 	origin[2] = o.getZ();
+}
+
+void phys_body_set_shape_none(struct phys_body *body)
+{
+	if (!body->body)
+		return;
+
+	if (body->world)
+		world_remove(body->world, body);
+
+	if (body->body)
+		delete body->body;
+	if (body->motion)
+		delete body->motion;
+	if (body->shape)
+		delete body->shape;
+
+	body->body = NULL;
+	body->motion = NULL;
+	body->shape = NULL;
+}
+
+void phys_body_set_shape_ground(struct phys_body *body)
+{
+	phys_body_set_shape_none(body);
+
+	body->shape = new btStaticPlaneShape(btVector3(0, 0, 1), 0);
+	body->motion = new btDefaultMotionState(btTransform(
+				btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
+
+	btRigidBody::btRigidBodyConstructionInfo info(0, body->motion,
+						body->shape, btVector3(0,0,0));
+	body->body = new btRigidBody(info);
+
+	if (body->world)
+		world_add(body->world, body);
+}
+
+void phys_body_set_shape_sphere(struct phys_body *body)
+{
+	phys_body_set_shape_none(body);
+
+	body->shape = new btSphereShape(1);
+	body->motion = new btDefaultMotionState(btTransform(
+				btQuaternion(0, 0, 0, 1), btVector3(0, 0, 50)));
+
+	btScalar mass = 1;
+	btVector3 inertia(0, 0, 0);
+	body->shape->calculateLocalInertia(mass, inertia);
+
+	btRigidBody::btRigidBodyConstructionInfo info(mass, body->motion,
+							body->shape, inertia);
+	body->body = new btRigidBody(info);
+
+	if (body->world)
+		world_add(body->world, body);
 }
