@@ -20,6 +20,8 @@ extern "C" {
 
 struct phys_body {
 	size_t ref;
+	struct phys_world *world;
+
 	btCollisionShape *shape;
 	btDefaultMotionState *motion;
 	btRigidBody *body;
@@ -76,13 +78,19 @@ int phys_world_step(struct phys_world *world, int64_t step)
 
 void phys_world_add(struct phys_world *world, struct phys_body *body)
 {
+	assert(!body->world);
+
 	phys_body_ref(body);
+	body->world = world;
 	world->world->addRigidBody(body->body);
 }
 
 void phys_world_remove(struct phys_world *world, struct phys_body *body)
 {
+	assert(body->world == world);
+
 	world->world->removeRigidBody(body->body);
+	body->world = NULL;
 	phys_body_unref(body);
 }
 
@@ -123,6 +131,8 @@ void phys_body_unref(struct phys_body *body)
 	if (body->shape)
 		delete body->shape;
 
+	/* if refcount drops zero we cannot be linked to any world! */
+	assert(!body->world);
 	free(body);
 }
 
