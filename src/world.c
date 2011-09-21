@@ -209,6 +209,9 @@ int world_new(struct world **world)
 		goto err_phys;
 	w->root->world = w;
 
+	e3d_eye_init(&w->eye);
+	e3d_light_init(&w->light0);
+
 	*world = w;
 	return 0;
 
@@ -221,6 +224,8 @@ err:
 
 void world_free(struct world *world)
 {
+	e3d_light_destroy(&world->light0);
+	e3d_eye_destroy(&world->eye);
 	world->root->world = NULL;
 	world_obj_unref(world->root);
 	phys_world_free(world->phys);

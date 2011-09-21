@@ -29,6 +29,9 @@ struct world_obj {
 struct world {
 	struct phys_world *phys;
 	struct world_obj *root;
+
+	struct e3d_light light0;
+	struct e3d_eye eye;
 };
 
 extern int world_obj_new(struct world_obj **obj);
