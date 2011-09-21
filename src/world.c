@@ -147,7 +147,9 @@ void world_obj_link(struct world_obj *prev, struct world_obj *obj)
 	assert(!obj->next);
 	assert(!obj->prev);
 
+	world_obj_ref(obj);
 	obj->parent = prev->parent;
+
 	obj->prev = prev;
 	obj->next = prev->next;
 	prev->next = obj;
@@ -169,6 +171,7 @@ void world_obj_link_first(struct world_obj *parent, struct world_obj *obj)
 	assert(!obj->next);
 	assert(!obj->prev);
 
+	world_obj_ref(obj);
 	obj->parent = parent;
 
 	obj->prev = NULL;
