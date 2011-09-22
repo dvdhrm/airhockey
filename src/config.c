@@ -375,7 +375,7 @@ static int load_triangle(struct e3d_shape *shape, const struct uconf_entry *e)
 
 	for (iter = e->v.list.first; iter; iter = iter->next) {
 		if (!iter->name)
-			ret = -EINVAL;
+			goto err;
 		else if (cstr_strcmp(iter->name, -1, "buffer"))
 			buffer = iter;
 		else
