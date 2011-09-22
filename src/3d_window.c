@@ -96,6 +96,7 @@ struct e3d_window *e3d_window_new()
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	sfWindow_Display(wnd->ctx);
 	sfWindow_SetFramerateLimit(wnd->ctx, 0);
+	sfWindow_EnableKeyRepeat(wnd->ctx, false);
 	sfWindow_Show(wnd->ctx, true);
 
 	return wnd;
