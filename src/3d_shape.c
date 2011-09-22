@@ -111,7 +111,7 @@ void e3d_buffer_generate_triangle_normals(struct e3d_buffer *buf)
 	assert(buf->vertex);
 	assert(buf->normal);
 
-	for (i = 0; i < buf->num; i += 3) {
+	for (i = 0; i < (buf->num - 2); i += 3) {
 		math_v3_sub_dest(a, buf->vertex[i], buf->vertex[i + 1]);
 		math_v3_sub_dest(b, buf->vertex[i], buf->vertex[i + 2]);
 		math_v3_product_dest(dest, a, b);
