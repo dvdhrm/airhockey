@@ -345,3 +345,15 @@ void phys_body_impulse(struct phys_body *body, math_v3 force)
 	body->body->applyCentralImpulse(
 				btVector3(force[0], force[1], force[2]));
 }
+
+void phys_body_force(struct phys_body *body, math_v3 force)
+{
+	btVector3 gravity;
+
+	if (!body->body)
+		return;
+
+	gravity = body->body->getGravity();
+	gravity += btVector3(force[0], force[1], force[2]);
+	body->body->setGravity(gravity);
+}

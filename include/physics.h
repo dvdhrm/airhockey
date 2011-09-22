@@ -40,6 +40,7 @@ extern void phys_body_set_shape_cylinder(struct phys_body *body);
 extern void phys_body_set_shape_table(struct phys_body *body);
 
 extern void phys_body_impulse(struct phys_body *body, math_v3 force);
+extern void phys_body_force(struct phys_body *body, math_v3 force);
 
 #ifdef __cplusplus
 }
