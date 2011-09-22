@@ -268,33 +268,21 @@ static int load_buffer_normal(struct e3d_buffer *buf,
 						const struct uconf_entry *e)
 {
 	size_t i;
-	const struct uconf_entry *iter;
 	GLfloat normal[4];
 	int ret;
 
-	if (e->type != UCONF_ENTRY_LIST)
-		return -EINVAL;
-
-	/*
-	 * If is is only one vector entry, then we simply copy this entry over
-	 * the whole buffer.
-	 */
-	if (e->v.list.first && e->v.list.first->type != UCONF_ENTRY_LIST) {
+	if (e->type == UCONF_ENTRY_QSTR) {
+		if (cstr_strcmp(e->v.qstr, -1, "triangle"))
+			e3d_buffer_generate_triangle_normals(buf);
+		else
+			return -EINVAL;
+	} else {
 		ret = load_vec(e, normal, 4);
 		if (ret)
 			return ret;
+
 		for (i = 0; i < buf->num; ++i)
 			memcpy(&buf->normal[i], normal, sizeof(normal));
-		return 0;
-	}
-
-	i = 0;
-	UCONF_ENTRY_FOR(e, iter) {
-		if (i >= buf->num)
-			return -EINVAL;
-		ret = load_vec(iter, (void*)&buf->normal[i++], 4);
-		if (ret)
-			return -EINVAL;
 	}
 
 	return 0;
@@ -305,7 +293,7 @@ static int load_buffer(struct e3d_buffer **buf, const struct uconf_entry *e)
 	const struct uconf_entry *iter, *vertex, *color, *normal;
 	size_t num;
 	int ret = 0;
-	uint8_t type = 0;
+	uint8_t type = E3D_BUFFER_VERTEX;
 	struct e3d_buffer *new;
 
 	if (e->type != UCONF_ENTRY_LIST)
@@ -323,6 +311,7 @@ static int load_buffer(struct e3d_buffer **buf, const struct uconf_entry *e)
 			type |= E3D_BUFFER_COLOR;
 		} else if (cstr_strcmp(iter->name, -1, "normal")) {
 			normal = iter;
+			type |= E3D_BUFFER_NORMAL;
 		} else {
 			ret = -EINVAL;
 		}
@@ -338,7 +327,7 @@ static int load_buffer(struct e3d_buffer **buf, const struct uconf_entry *e)
 	if (!num)
 		return -EINVAL;
 
-	new = e3d_buffer_new(num, type | E3D_BUFFER_VERTEX | E3D_BUFFER_NORMAL);
+	new = e3d_buffer_new(num, type);
 	if (!new)
 		return -ENOMEM;
 
@@ -355,8 +344,6 @@ static int load_buffer(struct e3d_buffer **buf, const struct uconf_entry *e)
 		ret = load_buffer_normal(new, normal);
 		if (ret)
 			goto err;
-	} else {
-		e3d_buffer_generate_triangle_normals(new);
 	}
 
 	*buf = e3d_buffer_ref(new);
