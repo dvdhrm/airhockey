@@ -348,7 +348,6 @@ static int load_buffer(struct e3d_buffer **buf, const struct uconf_entry *e)
 	if (e->type != UCONF_ENTRY_LIST)
 		return -EINVAL;
 
-	num = 0;
 	vertex = color = normal = NULL;
 
 	UCONF_ENTRY_FOR(e, iter) {
@@ -358,7 +357,6 @@ static int load_buffer(struct e3d_buffer **buf, const struct uconf_entry *e)
 			ret = load_size(iter, &num);
 		} else if (cstr_strcmp(iter->name, -1, "vertex")) {
 			vertex = iter;
-			type |= E3D_BUFFER_VERTEX;
 		} else if (cstr_strcmp(iter->name, -1, "color")) {
 			color = iter;
 			type |= E3D_BUFFER_COLOR;
@@ -372,15 +370,21 @@ static int load_buffer(struct e3d_buffer **buf, const struct uconf_entry *e)
 			return ret;
 	}
 
-	new = e3d_buffer_new(num, type | E3D_BUFFER_NORMAL);
+	if (!vertex || vertex->type != UCONF_ENTRY_LIST)
+		return -EINVAL;
+
+	num = vertex->v.list.num;
+	if (!num)
+		return -EINVAL;
+
+	new = e3d_buffer_new(num, type | E3D_BUFFER_VERTEX | E3D_BUFFER_NORMAL);
 	if (!new)
 		return -ENOMEM;
 
-	if (vertex) {
-		ret = load_buffer_vertex(new, vertex);
-		if (ret)
-			goto err;
-	}
+	ret = load_buffer_vertex(new, vertex);
+	if (ret)
+		goto err;
+
 	if (color) {
 		ret = load_buffer_color(new, color);
 		if (ret)

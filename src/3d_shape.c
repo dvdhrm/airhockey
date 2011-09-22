@@ -45,11 +45,11 @@ struct e3d_buffer *e3d_buffer_new(size_t size, uint8_t type)
 	size_t s, i;
 
 	assert(size > 0);
+	assert(type & E3D_BUFFER_VERTEX);
 
 	s = sizeof(*buf);
+	s += size * sizeof(GLfloat) * 4;
 
-	if (type & E3D_BUFFER_VERTEX)
-		s += size * sizeof(GLfloat) * 4;
 	if (type & E3D_BUFFER_COLOR)
 		s += size * sizeof(GLfloat) * 4;
 	if (type & E3D_BUFFER_NORMAL)
@@ -63,11 +63,9 @@ struct e3d_buffer *e3d_buffer_new(size_t size, uint8_t type)
 	buf->ref = 1;
 	buf->num = size;
 
-	i = 0;
-	if (type & E3D_BUFFER_VERTEX) {
-		buf->vertex = (void*)&buf->buf[i];
-		i += size * 4;
-	}
+	buf->vertex = (void*)&buf->buf[0];
+	i = size * 4;
+
 	if (type & E3D_BUFFER_COLOR) {
 		buf->color = (void*)&buf->buf[i];
 		i += size * 4;
@@ -199,13 +197,9 @@ void e3d_primitive_draw(struct e3d_primitive *prim,
 
 	E3D(glBindBuffer(GL_ARRAY_BUFFER, 0));
 
-	if (prim->buf->vertex) {
-		E3D(glEnableVertexAttribArray(loc->attr[E3D_A_VERTEX]));
-		E3D(glVertexAttribPointer(loc->attr[E3D_A_VERTEX], 4, GL_FLOAT,
+	E3D(glEnableVertexAttribArray(loc->attr[E3D_A_VERTEX]));
+	E3D(glVertexAttribPointer(loc->attr[E3D_A_VERTEX], 4, GL_FLOAT,
 					GL_FALSE, 0, prim->buf->vertex));
-	} else {
-		E3D(glDisableVertexAttribArray(loc->attr[E3D_A_VERTEX]));
-	}
 
 	if (prim->buf->color) {
 		E3D(glEnableVertexAttribArray(loc->attr[E3D_A_COLOR]));
@@ -270,7 +264,7 @@ void e3d_primitive_draw_silhouette(struct e3d_primitive *prim,
 {
 	math_m4 t_mat;
 
-	if (!prim->buf || !prim->buf->vertex)
+	if (!prim->buf)
 		return;
 
 	/* modelview, projection and eye matrix combined */
