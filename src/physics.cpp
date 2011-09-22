@@ -284,6 +284,59 @@ void phys_body_set_shape_cylinder(struct phys_body *body)
 		world_add(body->world, body);
 }
 
+void phys_body_set_shape_table(struct phys_body *body)
+{
+	btCollisionShape *shape;
+	btCompoundShape *com;
+
+	phys_body_set_shape_none(body);
+
+	/* TODO: we need to free all childs on body_free() */
+	com = new btCompoundShape();
+
+	/* ground */
+	shape = new btBoxShape(btVector3(5.5, 10.5, 0.5));
+	com->addChildShape(
+		btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, -0.5)),
+									shape);
+
+	/* sidewall long side 1 */
+	shape = new btBoxShape(btVector3(0.25, 10.5, 1));
+	com->addChildShape(
+		btTransform(btQuaternion(0, 0, 0, 1), btVector3(5.25, 0, 0)),
+									shape);
+
+	/* sidewall long side 2 */
+	shape = new btBoxShape(btVector3(0.25, 10.5, 1));
+	com->addChildShape(
+		btTransform(btQuaternion(0, 0, 0, 1), btVector3(-5.25, 0, 0)),
+									shape);
+
+	/* sidewall goal 1 */
+	shape = new btBoxShape(btVector3(5.0, 0.25, 1));
+	com->addChildShape(
+		btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, -10.5, 0)),
+									shape);
+
+	/* sidewall goal 2 */
+	shape = new btBoxShape(btVector3(5.0, 0.25, 1));
+	com->addChildShape(
+		btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 10.5, 0)),
+									shape);
+
+	body->shape = com;
+	body->motion = new btDefaultMotionState(btTransform(
+			btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
+
+	btRigidBody::btRigidBodyConstructionInfo info(0, body->motion,
+						body->shape, btVector3(0,0,0));
+	info.m_friction = 1;
+	body->body = new btRigidBody(info);
+
+	if (body->world)
+		world_add(body->world, body);
+}
+
 void phys_body_impulse(struct phys_body *body, math_v3 force)
 {
 	if (!body->body)

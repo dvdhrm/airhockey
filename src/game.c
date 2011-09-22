@@ -187,7 +187,7 @@ static int setup_world(struct world **world)
 	ret = setup_obj(&obj, &CSTR_CS("data/table.conf"));
 	if (ret)
 		goto err;
-	phys_body_set_shape_ground(obj->body);
+	phys_body_set_shape_table(obj->body);
 	world_add(w, obj);
 	world_obj_unref(obj);
 
@@ -196,7 +196,7 @@ static int setup_world(struct world **world)
 		goto err;
 	phys_body_set_shape_cylinder(obj->body);
 	world_add(w, obj);
-	phys_body_impulse(obj->body, (math_v3){ 0.4, 1.0, 0.0 });
+	phys_body_impulse(obj->body, (math_v3){ 3.5, 5.0, 0.0 });
 	world_obj_unref(obj);
 
 	*world = w;
