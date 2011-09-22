@@ -197,6 +197,7 @@ static int setup_world(struct world **world)
 	phys_body_set_shape_cylinder(obj->body);
 	world_add(w, obj);
 	phys_body_impulse(obj->body, (math_v3){ 3.5, 5.0, 0.0 });
+	phys_body_force(obj->body, (math_v3){ 0.0, -5.0, 0.0 });
 	world_obj_unref(obj);
 
 	*world = w;
