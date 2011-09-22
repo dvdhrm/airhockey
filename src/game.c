@@ -53,13 +53,34 @@ static inline int game_step_world(struct game *game)
 	struct e3d_event event;
 	int ret;
 
-	ret = e3d_window_poll(game->wnd, &event);
-	if (ret == -EAGAIN)
-		return 0;
-	if (ret < 0)
-		return ret;
+	while (1) {
+		ret = e3d_window_poll(game->wnd, &event);
+		if (ret == -EAGAIN)
+			break;
+		if (ret < 0)
+			return ret;
 
-	/* handle event */
+		/* handle events here */
+	}
+
+	if (e3d_window_get_key(game->wnd, E3D_KEY_LEFT))
+		e3d_eye_rotate(&game->world->eye, -2.0,
+				(math_v3){ 0.0, 0.0, 1.0 });
+	if (e3d_window_get_key(game->wnd, E3D_KEY_RIGHT))
+		e3d_eye_rotate(&game->world->eye, 2.0,
+				(math_v3){ 0.0, 0.0, 1.0 });
+	if (e3d_window_get_key(game->wnd, E3D_KEY_UP))
+		e3d_eye_rotate(&game->world->eye, -2.0,
+				(math_v3){ 0.0, 1.0, 0.0 });
+	if (e3d_window_get_key(game->wnd, E3D_KEY_DOWN))
+		e3d_eye_rotate(&game->world->eye, 2.0,
+				(math_v3){ 0.0, 1.0, 0.0 });
+	if (e3d_window_get_key(game->wnd, E3D_KEY_PAGEUP))
+		e3d_eye_rotate(&game->world->eye, -2.0,
+				(math_v3){ 1.0, 0.0, 0.0 });
+	if (e3d_window_get_key(game->wnd, E3D_KEY_PAGEDOWN))
+		e3d_eye_rotate(&game->world->eye, 2.0,
+				(math_v3){ 1.0, 0.0, 0.0 });
 
 	return 0;
 }
