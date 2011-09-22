@@ -120,23 +120,6 @@ static int load_float(const struct uconf_entry *e, GLfloat *out)
 }
 
 /*
- * Load \e into \out. \e is interpreted as positive integer.
- * Returns 0 on success or an error code on parsing failure.
- */
-static int load_size(const struct uconf_entry *e, size_t *out)
-{
-	if (e->type != UCONF_ENTRY_QINT)
-		return -EINVAL;
-
-	/* first cast value then check for range */
-	*out = e->v.qint;
-	if (*out < 0)
-		return -EINVAL;
-
-	return 0;
-}
-
-/*
  * Load floating point vector. This reads \num values from \e and saves them
  * into the array \out.
  * \e must be a list with exactly \num entries. The entries may be anonymous,
@@ -353,8 +336,6 @@ static int load_buffer(struct e3d_buffer **buf, const struct uconf_entry *e)
 	UCONF_ENTRY_FOR(e, iter) {
 		if (!iter->name) {
 			ret = -EINVAL;
-		} else if (cstr_strcmp(iter->name, -1, "num")) {
-			ret = load_size(iter, &num);
 		} else if (cstr_strcmp(iter->name, -1, "vertex")) {
 			vertex = iter;
 		} else if (cstr_strcmp(iter->name, -1, "color")) {
