@@ -17,6 +17,7 @@ extern "C" {
 
 typedef float math_v3[3];
 typedef float math_v4[4];
+typedef float math_q4[4];
 typedef float math_m4[4][4];
 
 extern void math_init(struct ulog_dev *log);
@@ -29,6 +30,12 @@ extern void math_v3_sub_dest(math_v3 dest, math_v3 src, math_v3 amount);
 
 extern void math_v4_copy(math_v4 dest, math_v4 src);
 extern void math_v4_add(math_v4 dest, math_v4 src);
+
+extern void math_q4_copy(math_q4 dest, math_q4 src);
+extern void math_q4_identity(math_q4 q);
+extern void math_q4_normalize(math_q4 q);
+extern void math_q4_to_m4(math_q4 src, math_m4 dest);
+extern void math_q4_rotate(math_q4 q, float angle, math_v3 axis);
 
 extern void math_m4_copy(math_m4 dest, math_m4 src);
 extern void math_m4_identity(math_m4 m);

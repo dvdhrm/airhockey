@@ -80,6 +80,31 @@ void math_v4_add(math_v4 dest, math_v4 src)
 	sgAddVec4(dest, src);
 }
 
+void math_q4_copy(math_q4 dest, math_q4 src)
+{
+	sgCopyQuat(dest, src);
+}
+
+void math_q4_identity(math_q4 q)
+{
+	sgMakeIdentQuat(q);
+}
+
+void math_q4_normalize(math_q4 q)
+{
+	sgNormalizeQuat(q);
+}
+
+void math_q4_to_m4(math_q4 src, math_m4 dest)
+{
+	sgQuatToMatrix(dest, src);
+}
+
+void math_q4_rotate(math_q4 q, float angle, math_v3 axis)
+{
+	sgAngleAxisToQuat(q, angle, axis);
+}
+
 void math_m4_copy(math_m4 dest, math_m4 src)
 {
 	sgCopyMat4(dest, src);
