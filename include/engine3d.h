@@ -361,6 +361,11 @@ extern void e3d_shape_draw(const struct e3d_shape *shape,
  * but to have a more structured API, a separate object is used.
  * This also allows to have the world class only operate in world space and not
  * be confused by eye space.
+ * For fast rotations and conversions we keep a transformation matrix with all
+ * transformations applied and a separate position and rotation variable.
+ * We could get both out of the matrix, but this conversion is expensive.
+ * Furthermore, there is probably only one eye in the whole application so we
+ * do not care for memory consumption here.
  */
 
 struct e3d_eye {
@@ -368,19 +373,10 @@ struct e3d_eye {
 	math_m4 matrix;
 };
 
-static inline void e3d_eye_init(struct e3d_eye *eye)
-{
-	eye->position[0] = 0.0f;
-	eye->position[1] = 0.0f;
-	eye->position[2] = 0.0f;
-	eye->position[3] = 1.0f;
-	math_m4_identity(eye->matrix);
-}
-
-static inline void e3d_eye_destroy(struct e3d_eye *eye)
-{
-}
-
+extern void e3d_eye_init(struct e3d_eye *eye);
+extern void e3d_eye_destroy(struct e3d_eye *eye);
+extern void e3d_eye_reset(struct e3d_eye *eye);
+extern void e3d_eye_rotate(struct e3d_eye *eye, float angle, math_v3 axis);
 extern void e3d_eye_look_at(struct e3d_eye *eye, math_v3 pos, math_v3 at,
 								math_v3 up);
 extern void e3d_eye_apply(const struct e3d_eye *eye, math_m4 m);

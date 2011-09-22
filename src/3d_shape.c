@@ -409,8 +409,42 @@ static void look_at(math_m4 m, math_v3 pos, math_v3 at, math_v3 up)
 	math_m4_translate(m, -pos[0], -pos[1], -pos[2]);
 }
 
+void e3d_eye_init(struct e3d_eye *eye)
+{
+	math_v4_copy(eye->position, (math_v4){ 0.0f, 0.0f, 0.0f, 1.0f });
+	math_m4_identity(eye->matrix);
+}
+
+void e3d_eye_destroy(struct e3d_eye *eye)
+{
+}
+
+void e3d_eye_reset(struct e3d_eye *eye)
+{
+	e3d_eye_init(eye);
+}
+
+/*
+ * Rotates the eye on the given angle and axis. This preserves previous
+ * conversions so you should call *_reset() if you do not want this.
+ */
+void e3d_eye_rotate(struct e3d_eye *eye, float angle, math_v3 axis)
+{
+	math_m4 m;
+	math_q4 q;
+
+	math_q4_rotate(q, angle, axis);
+	math_q4_to_m4(q, m);
+	math_m4_mult(eye->matrix, m);
+}
+
+/*
+ * This resets previous transformations. It tries to simluate the gluLookAt()
+ * call. Please see its documentation for more information.
+ */
 void e3d_eye_look_at(struct e3d_eye *eye, math_v3 pos, math_v3 at, math_v3 up)
 {
+	e3d_eye_init(eye);
 	math_v3_copy(eye->position, pos);
 	eye->position[3] = 1.0f;
 	look_at(eye->matrix, pos, at, up);
