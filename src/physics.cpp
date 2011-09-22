@@ -182,18 +182,17 @@ void phys_body_unref(struct phys_body *body)
 	free(body);
 }
 
-void phys_body_get_transform(struct phys_body *body, math_v3 origin)
+void phys_body_get_transform(struct phys_body *body, math_m4 transform)
 {
 	btTransform trans;
-	btVector3 o;
 
-	assert(body->body);
+	if (!body->body) {
+		math_m4_identity(transform);
+		return;
+	}
 
 	body->body->getMotionState()->getWorldTransform(trans);
-	o = trans.getOrigin();
-	origin[0] = o.getX();
-	origin[1] = o.getY();
-	origin[2] = o.getZ();
+	trans.getOpenGLMatrix((float*)transform);
 }
 
 void phys_body_unlink(struct phys_body *body)

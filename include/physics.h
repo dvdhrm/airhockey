@@ -29,7 +29,7 @@ extern void phys_world_remove(struct phys_world *world, struct phys_body *body);
 extern struct phys_body *phys_body_new();
 extern struct phys_body *phys_body_ref(struct phys_body *body);
 extern void phys_body_unref(struct phys_body *body);
-extern void phys_body_get_transform(struct phys_body *body, math_v3 origin);
+extern void phys_body_get_transform(struct phys_body *body, math_m4 transform);
 extern void phys_body_unlink(struct phys_body *body);
 
 extern bool phys_body_has_shape(struct phys_body *body);
