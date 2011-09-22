@@ -196,6 +196,7 @@ static int setup_world(struct world **world)
 		goto err;
 	phys_body_set_shape_sphere(obj->body);
 	world_add(w, obj);
+	phys_body_impulse(obj->body, (math_v3){ 0.4, 1.0, 0.0 });
 	world_obj_unref(obj);
 
 	*world = w;

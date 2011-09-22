@@ -37,6 +37,8 @@ extern void phys_body_set_shape_none(struct phys_body *body);
 extern void phys_body_set_shape_ground(struct phys_body *body);
 extern void phys_body_set_shape_sphere(struct phys_body *body);
 
+extern void phys_body_impulse(struct phys_body *body, math_v3 force);
+
 #ifdef __cplusplus
 }
 #endif

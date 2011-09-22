@@ -261,3 +261,12 @@ void phys_body_set_shape_sphere(struct phys_body *body)
 	if (body->world)
 		world_add(body->world, body);
 }
+
+void phys_body_impulse(struct phys_body *body, math_v3 force)
+{
+	if (!body->body)
+		return;
+
+	body->body->applyCentralImpulse(
+				btVector3(force[0], force[1], force[2]));
+}
