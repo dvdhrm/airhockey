@@ -206,6 +206,7 @@ extern int e3d_window_poll(struct e3d_window *wnd, struct e3d_event *out);
 extern int64_t e3d_window_elapsed(struct e3d_window *wnd);
 extern void e3d_window_frame(struct e3d_window *wnd);
 extern void e3d_window_projection(const struct e3d_window *wnd, math_m4 m);
+extern bool e3d_window_get_key(const struct e3d_window *wnd, unsigned int key);
 
 /*
  * Shader loader

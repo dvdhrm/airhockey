@@ -198,3 +198,8 @@ void e3d_window_projection(const struct e3d_window *wnd, math_m4 m)
 {
 	glGetFloatv(GL_PROJECTION_MATRIX, (GLfloat*)m);
 }
+
+bool e3d_window_get_key(const struct e3d_window *wnd, unsigned int key)
+{
+	return sfKeyboard_IsKeyPressed(key);
+}
