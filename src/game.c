@@ -194,7 +194,7 @@ static int setup_world(struct world **world)
 	ret = setup_obj(&obj, &CSTR_CS("data/test.conf"));
 	if (ret)
 		goto err;
-	phys_body_set_shape_sphere(obj->body);
+	phys_body_set_shape_cylinder(obj->body);
 	world_add(w, obj);
 	phys_body_impulse(obj->body, (math_v3){ 0.4, 1.0, 0.0 });
 	world_obj_unref(obj);
