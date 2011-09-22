@@ -252,34 +252,14 @@ static int load_buffer_color(struct e3d_buffer *buf,
 						const struct uconf_entry *e)
 {
 	size_t i;
-	const struct uconf_entry *iter;
 	GLfloat color[4];
 	int ret;
 
-	if (e->type != UCONF_ENTRY_LIST)
-		return -EINVAL;
-
-	/*
-	 * If is is only one vector entry, then we simply copy this entry over
-	 * the whole buffer.
-	 */
-	if (e->v.list.first && e->v.list.first->type != UCONF_ENTRY_LIST) {
-		ret = load_vec(e, color, 4);
-		if (ret)
-			return ret;
-		for (i = 0; i < buf->num; ++i)
-			memcpy(&buf->color[i], color, sizeof(color));
-		return 0;
-	}
-
-	i = 0;
-	UCONF_ENTRY_FOR(e, iter) {
-		if (i >= buf->num)
-			return -EINVAL;
-		ret = load_vec(iter, (void*)&buf->color[i++], 4);
-		if (ret)
-			return -EINVAL;
-	}
+	ret = load_vec(e, color, 4);
+	if (ret)
+		return ret;
+	for (i = 0; i < buf->num; ++i)
+		memcpy(&buf->color[i], color, sizeof(color));
 
 	return 0;
 }
