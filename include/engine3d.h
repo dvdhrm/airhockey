@@ -27,6 +27,17 @@
  * functions.
  */
 
+/* binary offset */
+#define E3D_OFF(ptr, num) ((void*)(((char*)(ptr)) + (num)))
+
+#ifndef __cplusplus
+/* GL type to type size */
+static const size_t e3d_tsize[] = {
+	[GL_FLOAT] = sizeof(GLfloat),
+	[GL_UNSIGNED_INT] = sizeof(GLuint),
+};
+#endif
+
 struct e3d_functions {
 	PFNGLCREATEPROGRAMPROC glCreateProgram;
 	PFNGLDELETEPROGRAMPROC glDeleteProgram;
@@ -49,6 +60,7 @@ struct e3d_functions {
 	PFNGLBINDBUFFERPROC glBindBuffer;
 	PFNGLBUFFERDATAPROC glBufferData;
 	PFNGLGENBUFFERSPROC glGenBuffers;
+	PFNGLDELETEBUFFERSPROC glDeleteBuffers;
 	PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
 	PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer;
 	PFNGLDISABLEVERTEXATTRIBARRAYPROC glDisableVertexAttribArray;
@@ -258,18 +270,87 @@ extern const struct e3d_shader_locations *e3d_shader_locations(
 extern void e3d_shader_use(struct e3d_shader *shader);
 
 /*
- * Primitive Shapes
+ * Buffer objects
+ * Buffer objects can store arbitrary data and are used for any draw and
+ * writeback operation.
+ */
+
+struct e3d_vbo {
+	size_t ref;
+	unsigned int ele_type;
+	size_t ele_num;
+	size_t num;
+	void *data;
+	GLuint id;
+};
+
+enum e3d_vbo_hint {
+	E3D_VBO_STATIC_DRAW = GL_STATIC_DRAW,
+	E3D_VBO_STATIC_READ = GL_STATIC_READ,
+	E3D_VBO_STATIC_COPY = GL_STATIC_COPY,
+	E3D_VBO_DYNAMIC_DRAW = GL_DYNAMIC_DRAW,
+	E3D_VBO_DYNAMIC_READ = GL_DYNAMIC_READ,
+	E3D_VBO_DYNAMIC_COPY = GL_DYNAMIC_COPY,
+};
+
+extern int e3d_vbo_new(struct e3d_vbo **vbo, unsigned int ele_type,
+						size_t ele_num, size_t num);
+extern void e3d_vbo_ref(struct e3d_vbo *vbo);
+extern void e3d_vbo_unref(struct e3d_vbo *vbo);
+extern int e3d_vbo_grab(struct e3d_vbo *vbo, int hint);
+extern void e3d_vbo_release(struct e3d_vbo *vbo);
+extern void e3d_vbo_bind(struct e3d_vbo *vbo, GLint attr, size_t off);
+extern void e3d_vbo_draw(struct e3d_vbo *vbo, GLuint type, size_t num,
+								size_t off);
+extern void e3d_vbo_debug(struct e3d_vbo *vbo);
+
+#define E3D_VBO_AT(vbo, idx) E3D_OFF((vbo)->data, \
+			e3d_tsize[(vbo)->ele_type] * (vbo)->ele_num * (idx))
+
+static inline bool e3d_vbo_is_v4(struct e3d_vbo *vbo)
+{
+	return vbo->ele_type == GL_FLOAT && vbo->ele_num == 4;
+}
+
+static inline int e3d_vbo_new_v4(struct e3d_vbo **vbo, size_t num)
+{
+	return e3d_vbo_new(vbo, GL_FLOAT, 4, num);
+}
+
+static inline bool e3d_vbo_is_v3(struct e3d_vbo *vbo)
+{
+	return vbo->ele_type == GL_FLOAT && vbo->ele_num == 3;
+}
+
+static inline int e3d_vbo_new_v3(struct e3d_vbo **vbo, size_t num)
+{
+	return e3d_vbo_new(vbo, GL_FLOAT, 3, num);
+}
+
+static inline bool e3d_vbo_is_idx(struct e3d_vbo *vbo)
+{
+	return vbo->ele_type == GL_UNSIGNED_INT && vbo->ele_num == 1;
+}
+
+static inline int e3d_vbo_new_idx(struct e3d_vbo **vbo, size_t num)
+{
+	return e3d_vbo_new(vbo, GL_UNSIGNED_INT, 1, num);
+}
+
+/*
+ * Primitives
  * Primitives can be drawn with one call and thus are very fast. Every other
  * shape is based on primitives. A primitive can contain several buffers, but
  * only the available buffers are sent to the graphics engine.
  * If an indicies buffer is available, the drawing function will use it to draw
  * the primitive. Otherwise, the whole buffer is drawn as if the indicies where
  * consecutive.
+ * Drawing a primitive requires the current transformation stack. The
+ * transformation stack is split into three matrices:
+ *	mod: Transforms into world space
+ *	proj: Transforms into projection space
+ *	eye: Transforms into eye space
  */
-
-#define E3D_BUFFER_VERTEX	0x01
-#define E3D_BUFFER_COLOR	0x02
-#define E3D_BUFFER_NORMAL	0x04
 
 struct e3d_transform {
 	struct math_stack mod_stack;
@@ -277,45 +358,46 @@ struct e3d_transform {
 	struct math_stack eye_stack;
 };
 
-struct e3d_buffer {
-	size_t ref;
-	GLsizei num;
-	GLfloat (*vertex)[4];
-	GLfloat (*color)[4];
-	GLfloat (*normal)[4];
-	GLfloat buf[];
-};
-
-struct e3d_primitive {
-	size_t ref;
-	GLuint type;
-
-	struct e3d_buffer *buf;
-	GLsizei num;
-	GLuint ibuf[];
-};
-
 extern void e3d_transform_init(struct e3d_transform *transform);
 extern void e3d_transform_destroy(struct e3d_transform *transform);
 extern void e3d_transform_reset(struct e3d_transform *transform);
 
-extern struct e3d_buffer *e3d_buffer_new(size_t size, uint8_t type);
-extern struct e3d_buffer *e3d_buffer_ref(struct e3d_buffer *buf);
-extern void e3d_buffer_unref(struct e3d_buffer *buf);
-extern void e3d_buffer_generate_triangle_normals(struct e3d_buffer *buf);
+struct e3d_primitive {
+	size_t ref;
+	GLuint type;
+	size_t num;
 
-extern struct e3d_primitive *e3d_primitive_new(size_t num);
-extern struct e3d_primitive *e3d_primitive_ref(struct e3d_primitive *prim);
+	size_t voff;
+	struct e3d_vbo *vertex;
+	size_t coff;
+	struct e3d_vbo *color;
+	size_t noff;
+	struct e3d_vbo *normal;
+	size_t ioff;
+	struct e3d_vbo *index;
+};
+
+enum e3d_primitive_drawer {
+	E3D_DRAW_FULL,
+	E3D_DRAW_SILHOUETTE,
+	E3D_DRAW_NORMALS,
+};
+
+extern int e3d_primitive_new(struct e3d_primitive **prim);
+extern void e3d_primitive_ref(struct e3d_primitive *prim);
 extern void e3d_primitive_unref(struct e3d_primitive *prim);
-
-extern void e3d_primitive_set_buffer(struct e3d_primitive *prim,
-							struct e3d_buffer *buf);
-extern void e3d_primitive_draw(struct e3d_primitive *prim,
+extern void e3d_primitive_set_vertex(struct e3d_primitive *prim, size_t off,
+							struct e3d_vbo *vbo);
+extern void e3d_primitive_set_color(struct e3d_primitive *prim, size_t off,
+							struct e3d_vbo *vbo);
+extern void e3d_primitive_set_normal(struct e3d_primitive *prim, size_t off,
+							struct e3d_vbo *vbo);
+extern void e3d_primitive_set_index(struct e3d_primitive *prim, size_t off,
+							struct e3d_vbo *vbo);
+extern void e3d_primitive_draw(struct e3d_primitive *prim, int how,
 	const struct e3d_shader_locations *loc, struct e3d_transform *trans);
-extern void e3d_primitive_draw_normals(struct e3d_primitive *prim,
-	const struct e3d_shader_locations *loc, struct e3d_transform *trans);
-extern void e3d_primitive_draw_silhouette(struct e3d_primitive *prim,
-	const struct e3d_shader_locations *loc, struct e3d_transform *trans);
+extern int e3d_primitive_generate_normals(struct e3d_primitive *prim);
+extern void e3d_primitive_debug(struct e3d_primitive *prim);
 
 /*
  * Shapes
@@ -327,7 +409,6 @@ extern void e3d_primitive_draw_silhouette(struct e3d_primitive *prim,
  * limited to static objects, however, animations and similar should be handled
  * on a higher level as this structure does not allow fast traversal and may be
  * used multiple times in one scene for the same object.
- * The e3d_alter structure is used for object translations/scaling/etc.
  * Also rendering order of shapes is random, so a shape should always be a small
  * entity which is considered one static and rigid object.
  */
@@ -341,19 +422,16 @@ struct e3d_shape {
 	struct e3d_primitive *prim;
 };
 
-extern struct e3d_shape *e3d_shape_new();
-extern struct e3d_shape *e3d_shape_ref(struct e3d_shape *shape);
+extern int e3d_shape_new(struct e3d_shape **shape);
+extern void e3d_shape_ref(struct e3d_shape *shape);
 extern void e3d_shape_unref(struct e3d_shape *shape);
+
 extern void e3d_shape_link(struct e3d_shape *parent, struct e3d_shape *shape);
 extern void e3d_shape_set_primitive(struct e3d_shape *shape,
 						struct e3d_primitive *prim);
-
-typedef void (*e3d_shape_drawer) (struct e3d_primitive *prim,
+extern void e3d_shape_draw(const struct e3d_shape *shape, int drawer,
 	const struct e3d_shader_locations *loc, struct e3d_transform *trans);
-
-extern void e3d_shape_draw(const struct e3d_shape *shape,
-	const struct e3d_shader_locations *loc, struct e3d_transform *trans,
-						e3d_shape_drawer drawer);
+extern void e3d_shape_debug(struct e3d_shape *shape);
 
 /*
  * Eye position

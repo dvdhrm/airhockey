@@ -29,8 +29,8 @@ int world_obj_new(struct world_obj **obj)
 	memset(o, 0, sizeof(*o));
 	math_m4_identity(o->alter);
 
-	o->shape = e3d_shape_new();
-	if (!o->shape) {
+	ret = e3d_shape_new(&o->shape);
+	if (ret) {
 		ret = -ENOMEM;
 		goto err;
 	}
@@ -190,7 +190,7 @@ void world_obj_link_first(struct world_obj *parent, struct world_obj *obj)
 
 static void draw_obj(struct world_obj *obj,
 	const struct e3d_shader_locations *loc, struct e3d_transform *trans,
-							e3d_shape_drawer drawer)
+								int drawer)
 {
 	struct world_obj *iter;
 	math_m4 phys;
@@ -205,7 +205,7 @@ static void draw_obj(struct world_obj *obj,
 		math_m4_mult(MATH_TIP(&trans->mod_stack), phys);
 	}
 
-	e3d_shape_draw(obj->shape, loc, trans, drawer);
+	e3d_shape_draw(obj->shape, drawer, loc, trans);
 
 	for (iter = obj->first; iter; iter = iter->next)
 		draw_obj(iter, loc, trans, drawer);
@@ -280,7 +280,7 @@ void world_draw(struct world *world, struct e3d_transform *trans,
 	e3d_eye_supply(&world->eye, loc);
 	e3d_light_supply(&world->light0, 0, loc);
 
-	draw_obj(world->root, loc, trans, e3d_primitive_draw);
+	draw_obj(world->root, loc, trans, E3D_DRAW_FULL);
 
 	/* draw silhouette edges */
 	glLineWidth(5.0);
@@ -291,7 +291,7 @@ void world_draw(struct world *world, struct e3d_transform *trans,
 	e3d_shader_use(shaders->simple);
 	loc = e3d_shader_locations(shaders->simple);
 
-	draw_obj(world->root, loc, trans, e3d_primitive_draw_silhouette);
+	draw_obj(world->root, loc, trans, E3D_DRAW_SILHOUETTE);
 
 	/* draw normals */
 	glLineWidth(1.0);
@@ -302,5 +302,5 @@ void world_draw(struct world *world, struct e3d_transform *trans,
 	e3d_shader_use(shaders->simple);
 	loc = e3d_shader_locations(shaders->simple);
 
-	draw_obj(world->root, loc, trans, e3d_primitive_draw_normals);
+	draw_obj(world->root, loc, trans, E3D_DRAW_NORMALS);
 }

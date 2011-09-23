@@ -41,6 +41,7 @@ struct e3d_functions e3d_gl = {
 	.glBindBuffer = glBindBuffer,
 	.glBufferData = glBufferData,
 	.glGenBuffers = glGenBuffers,
+	.glDeleteBuffers = glDeleteBuffers,
 	.glEnableVertexAttribArray = glEnableVertexAttribArray,
 	.glVertexAttribPointer = glVertexAttribPointer,
 	.glDisableVertexAttribArray = glDisableVertexAttribArray,

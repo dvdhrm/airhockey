@@ -57,7 +57,9 @@ static inline int game_step_world(struct game *game)
 		ret = e3d_window_poll(game->wnd, &event);
 		if (ret == -EAGAIN)
 			break;
-		if (ret < 0)
+		else if (ret == 0)
+			return -EAGAIN;
+		else if (ret < 0)
 			return ret;
 
 		/* handle events here */
@@ -179,21 +181,27 @@ static int setup_world(struct world **world)
 						(math_v3) { 0.0, 1.0, 0.0 });
 
 	ret = setup_obj(&obj, &CSTR_CS("data/room.conf"));
-	if (ret)
+	if (ret) {
+		printf("Cannot open room.conf\n");
 		goto err;
+	}
 	world_add(w, obj);
 	world_obj_unref(obj);
 
 	ret = setup_obj(&obj, &CSTR_CS("data/table.conf"));
-	if (ret)
+	if (ret) {
+		printf("Cannot open table.conf\n");
 		goto err;
+	}
 	phys_body_set_shape_table(obj->body);
 	world_add(w, obj);
 	world_obj_unref(obj);
 
 	ret = setup_obj(&obj, &CSTR_CS("data/test.conf"));
-	if (ret)
+	if (ret) {
+		printf("Cannot open test.conf\n");
 		goto err;
+	}
 	phys_body_set_shape_cylinder(obj->body);
 	world_add(w, obj);
 	phys_body_impulse(obj->body, (math_v3){ 3.5, 5.0, 0.0 });

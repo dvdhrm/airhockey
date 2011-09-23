@@ -9,7 +9,9 @@ HEADERS=include/engine3d.h include/log.h include/main.h include/world.h
 HEADERS+=include/mathw.h include/physics.h
 
 SRCS=src/log.c src/main.c src/misc.c src/config.c src/game.c src/world.c
+SRCS+=src/config_shape.c
 SRCS+=src/3d_main.c src/3d_shape.c src/3d_shader.c src/3d_window.c
+SRCS+=src/3d_buffer.c
 SRCS+=src/mathw.cpp src/physics.cpp
 
 CFLAGS=-O0 -Wall -g -Iinclude
