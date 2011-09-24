@@ -18,6 +18,8 @@
 #include "physics.h"
 #include "world.h"
 
+struct world_obj *p1;
+
 struct game {
 	struct ulog_dev *log;
 	struct e3d_window *wnd;
@@ -65,24 +67,34 @@ static inline int game_step_world(struct game *game)
 		/* handle events here */
 	}
 
-	if (e3d_window_get_key(game->wnd, E3D_KEY_LEFT))
+	if (e3d_window_get_key(game->wnd, E3D_KEY_A))
 		e3d_eye_rotate(&game->world->eye, -2.0,
 				(math_v3){ 0.0, 0.0, 1.0 });
-	if (e3d_window_get_key(game->wnd, E3D_KEY_RIGHT))
+	if (e3d_window_get_key(game->wnd, E3D_KEY_D))
 		e3d_eye_rotate(&game->world->eye, 2.0,
 				(math_v3){ 0.0, 0.0, 1.0 });
+	if (e3d_window_get_key(game->wnd, E3D_KEY_W))
+		e3d_eye_rotate(&game->world->eye, -2.0,
+				(math_v3){ 0.0, 1.0, 0.0 });
+	if (e3d_window_get_key(game->wnd, E3D_KEY_S))
+		e3d_eye_rotate(&game->world->eye, 2.0,
+				(math_v3){ 0.0, 1.0, 0.0 });
+	if (e3d_window_get_key(game->wnd, E3D_KEY_Q))
+		e3d_eye_rotate(&game->world->eye, -2.0,
+				(math_v3){ 1.0, 0.0, 0.0 });
+	if (e3d_window_get_key(game->wnd, E3D_KEY_E))
+		e3d_eye_rotate(&game->world->eye, 2.0,
+				(math_v3){ 1.0, 0.0, 0.0 });
+
+	float f = 150;
 	if (e3d_window_get_key(game->wnd, E3D_KEY_UP))
-		e3d_eye_rotate(&game->world->eye, -2.0,
-				(math_v3){ 0.0, 1.0, 0.0 });
+		phys_body_impulse(p1->body, (math_v3) { 0, -f, 0 });
 	if (e3d_window_get_key(game->wnd, E3D_KEY_DOWN))
-		e3d_eye_rotate(&game->world->eye, 2.0,
-				(math_v3){ 0.0, 1.0, 0.0 });
-	if (e3d_window_get_key(game->wnd, E3D_KEY_PAGEUP))
-		e3d_eye_rotate(&game->world->eye, -2.0,
-				(math_v3){ 1.0, 0.0, 0.0 });
-	if (e3d_window_get_key(game->wnd, E3D_KEY_PAGEDOWN))
-		e3d_eye_rotate(&game->world->eye, 2.0,
-				(math_v3){ 1.0, 0.0, 0.0 });
+		phys_body_impulse(p1->body, (math_v3) { 0, f, 0 });
+	if (e3d_window_get_key(game->wnd, E3D_KEY_LEFT))
+		phys_body_impulse(p1->body, (math_v3) { f, 0, 0 });
+	if (e3d_window_get_key(game->wnd, E3D_KEY_RIGHT))
+		phys_body_impulse(p1->body, (math_v3) { -f, 0, 0 });
 
 	return 0;
 }
@@ -173,7 +185,7 @@ static int setup_world(struct world **world)
 	ret = world_new(&w);
 	if (ret)
 		return ret;
-	e3d_eye_look_at(&w->eye, (math_v3) { 18.0, 15.0, 15.0 },
+	e3d_eye_look_at(&w->eye, (math_v3) { 0.0, 25.0, 15.0 },
 						(math_v3) { 0.0, 0.0, 0.0 },
 						(math_v3) { 0.0, 0.0, 1.0 });
 	e3d_light_look_at(&w->light0, (math_v3) { 0.0, 0.0, 10.0 },
@@ -202,10 +214,19 @@ static int setup_world(struct world **world)
 		printf("Cannot open puk.conf\n");
 		goto err;
 	}
+	phys_body_set_shape_puk(obj->body);
+	world_add(w, obj);
+	phys_body_force(obj->body, (math_v3){ 0, 0, 0.0 });
+	world_obj_unref(obj);
+
+	ret = setup_obj(&obj, &CSTR_CS("data/puk.conf"));
+	if (ret) {
+		printf("Cannot open puk.conf\n");
+		goto err;
+	}
 	phys_body_set_shape_cylinder(obj->body);
 	world_add(w, obj);
-	phys_body_impulse(obj->body, (math_v3){ 3.5, 5.0, 0.0 });
-	world_obj_unref(obj);
+	p1 = obj;
 
 	*world = w;
 	return 0;

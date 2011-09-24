@@ -269,9 +269,30 @@ void phys_body_set_shape_cylinder(struct phys_body *body)
 
 	body->shape = new btCylinderShapeZ(btVector3(1, 1, 0.25));
 	body->motion = new btDefaultMotionState(btTransform(
-				btQuaternion(0, 0, 0, 1), btVector3(0, 0, 10)));
+				btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
 
-	btScalar mass = 1;
+	btScalar mass = 100;
+	btVector3 inertia(0, 0, 0);
+	body->shape->calculateLocalInertia(mass, inertia);
+
+	btRigidBody::btRigidBodyConstructionInfo info(mass, body->motion,
+							body->shape, inertia);
+	info.m_friction = 2;
+	body->body = new btRigidBody(info);
+
+	if (body->world)
+		world_add(body->world, body);
+}
+
+void phys_body_set_shape_puk(struct phys_body *body)
+{
+	phys_body_set_shape_none(body);
+
+	body->shape = new btCylinderShapeZ(btVector3(1, 1, 0.25));
+	body->motion = new btDefaultMotionState(btTransform(
+				btQuaternion(0, 0, 0, 1), btVector3(3, 3, 1)));
+
+	btScalar mass = 100;
 	btVector3 inertia(0, 0, 0);
 	body->shape->calculateLocalInertia(mass, inertia);
 
