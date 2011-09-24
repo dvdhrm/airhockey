@@ -22,138 +22,6 @@
 /* forward declaration to allow recursion */
 static int load_generic(const struct uconf_entry *e, struct e3d_shape *shape);
 
-#if 0
-static int load_buffer_vertex(struct e3d_buffer *buf,
-						const struct uconf_entry *e)
-{
-	size_t i;
-	const struct uconf_entry *iter;
-	int ret;
-
-	if (e->type != UCONF_ENTRY_LIST)
-		return -EINVAL;
-
-	i = 0;
-	UCONF_ENTRY_FOR(e, iter) {
-		if (i >= buf->num)
-			return -EINVAL;
-		ret = load_vec(iter, (void*)&buf->vertex[i++], 4);
-		if (ret)
-			return -EINVAL;
-	}
-
-	if (i != buf->num)
-		return -EINVAL;
-
-	return 0;
-}
-
-static int load_buffer_color(struct e3d_buffer *buf,
-						const struct uconf_entry *e)
-{
-	size_t i;
-	GLfloat color[4];
-	int ret;
-
-	ret = load_vec(e, color, 4);
-	if (ret)
-		return ret;
-	for (i = 0; i < buf->num; ++i)
-		memcpy(&buf->color[i], color, sizeof(color));
-
-	return 0;
-}
-
-static int load_buffer_normal(struct e3d_buffer *buf,
-						const struct uconf_entry *e)
-{
-	size_t i;
-	GLfloat normal[4];
-	int ret;
-
-	if (e->type == UCONF_ENTRY_QSTR) {
-		if (cstr_strcmp(e->v.qstr, -1, "triangle"))
-			e3d_buffer_generate_triangle_normals(buf);
-		else
-			return -EINVAL;
-	} else {
-		ret = load_vec(e, normal, 4);
-		if (ret)
-			return ret;
-
-		for (i = 0; i < buf->num; ++i)
-			memcpy(&buf->normal[i], normal, sizeof(normal));
-	}
-
-	return 0;
-}
-
-static int load_buffer(struct e3d_buffer **buf, const struct uconf_entry *e)
-{
-	const struct uconf_entry *iter, *vertex, *color, *normal;
-	size_t num;
-	int ret = 0;
-	uint8_t type = E3D_BUFFER_VERTEX;
-	struct e3d_buffer *new;
-
-	if (e->type != UCONF_ENTRY_LIST)
-		return -EINVAL;
-
-	vertex = color = normal = NULL;
-
-	UCONF_ENTRY_FOR(e, iter) {
-		if (!iter->name) {
-			ret = -EINVAL;
-		} else if (cstr_strcmp(iter->name, -1, "vertex")) {
-			vertex = iter;
-		} else if (cstr_strcmp(iter->name, -1, "color")) {
-			color = iter;
-			type |= E3D_BUFFER_COLOR;
-		} else if (cstr_strcmp(iter->name, -1, "normal")) {
-			normal = iter;
-			type |= E3D_BUFFER_NORMAL;
-		} else {
-			ret = -EINVAL;
-		}
-
-		if (ret)
-			return ret;
-	}
-
-	if (!vertex || vertex->type != UCONF_ENTRY_LIST)
-		return -EINVAL;
-
-	num = vertex->v.list.num;
-	if (!num)
-		return -EINVAL;
-
-	new = e3d_buffer_new(num, type);
-	if (!new)
-		return -ENOMEM;
-
-	ret = load_buffer_vertex(new, vertex);
-	if (ret)
-		goto err;
-
-	if (color) {
-		ret = load_buffer_color(new, color);
-		if (ret)
-			goto err;
-	}
-	if (normal) {
-		ret = load_buffer_normal(new, normal);
-		if (ret)
-			goto err;
-	}
-
-	*buf = e3d_buffer_ref(new);
-
-err:
-	e3d_buffer_unref(new);
-	return ret;
-}
-#endif
-
 static int load_v34_list(const struct uconf_entry *e, math_v4 *out, float d4)
 {
 	const struct uconf_entry *iter;
@@ -411,179 +279,212 @@ err:
 }
 
 /*
- * This creates a buffer for a cylinder. The buffer contains the vertices for
- * the lower circle and upper circle. The rest of the vertices buffer is not
- * touched.
- * This also fills the normals buffer. First the normals for the bottom circle,
- * then for the upper circle, followed by the normals for the sidewall.
+ * Creates the vertex buffer for cylinders. The vertex buffer contains
+ * the vertices for the lower circle followed by the vertices for the upper
+ * circle.
+ * \vbo must be of type v4 and have room for at least \detail * 2 vertices.
+ * \extents specifies the half extents of the cylinder.
  * \detail specifies how much vertices are used for each circle. It must be at
  * least 5.
- * \buf must have enough space for at least \detail * 2 + (\detail - 1) * 6
- * normals. The vertices count is smaller so you should u
  */
-#if 0
-static void create_cylinder_buffer(struct e3d_buffer *buf, math_v3 extends,
-								size_t detail)
+static void fill_cylinder(struct e3d_vbo *vbo, math_v3 extents, size_t detail)
 {
 	static const GLfloat pi = 3.14159265358;
-	GLfloat udeg, factor;
+	float udeg, factor;
 	size_t i;
-	GLfloat *v;
+	float *v;
 
 	assert(detail >= 5);
-	assert(buf->num >= (detail * 2 + (detail - 1) * 6));
+	assert(e3d_vbo_is_v4(vbo));
+	assert(vbo->num >= detail * 2);
 
-	v = (void*)buf->vertex;
+	v = (void*)vbo->data;
 	factor = 2 * pi / (detail - 1);
 	i = 0;
 
 	v[i * 4] = 0.0;
 	v[i * 4 + 1] = 0.0;
-	v[i * 4 + 2] = -extends[2];
+	v[i * 4 + 2] = -extents[2];
 	v[i * 4 + 3] = 1.0;
 
 	for (i += 1; i < detail; ++i) {
 		udeg = (i - 1) * factor;
 
-		v[i * 4] = cos(udeg) * extends[0];
-		v[i * 4 + 1] = sin(udeg) * extends[1];
-		v[i * 4 + 2] = -extends[2];
+		v[i * 4] = cos(udeg) * extents[0];
+		v[i * 4 + 1] = sin(udeg) * extents[1];
+		v[i * 4 + 2] = -extents[2];
 		v[i * 4 + 3] = 1.0;
 	}
 
 	v[i * 4] = 0.0;
 	v[i * 4 + 1] = 0.0;
-	v[i * 4 + 2] = extends[2];
+	v[i * 4 + 2] = extents[2];
 	v[i * 4 + 3] = 1.0;
 
 	for (i += 1; i < (detail * 2); ++i) {
 		udeg = ((i - detail) - 1) * factor;
 
-		v[i * 4] = cos(udeg) * extends[0];
-		v[i * 4 + 1] = sin(udeg) * extends[1];
-		v[i * 4 + 2] = extends[2];
+		v[i * 4] = cos(udeg) * extents[0];
+		v[i * 4 + 1] = sin(udeg) * extents[1];
+		v[i * 4 + 2] = extents[2];
 		v[i * 4 + 3] = 1.0;
 	}
 }
-#endif
 
-#if 0
 /*
  * This creates a new cylinder with the given extends. It creates two circles
  * for the bottom and top with triangle fans and one primitive with triangles
- * for the roundup.
+ * for the side wall.
  */
-static int create_cylinder(struct e3d_shape *shape, math_v3 extends,
-								math_v4 color)
+static int create_cylinder(struct e3d_shape *shape, math_v3 extents,
+						math_v4 col, size_t detail)
 {
 	struct e3d_shape *bottom, *top, *round;
 	struct e3d_primitive *pbottom, *ptop, *pround;
-	struct e3d_buffer *buf;
+	struct e3d_vbo *vb, *cb, *nb;
 	int ret = 0;
-	static const size_t detail = 10;
 	size_t i;
 
-	assert(detail >= 5);
-
-	if (extends[0] <= 0 || extends[1] <= 0 || extends[2] <= 0)
+	if (detail < 5)
 		return -EINVAL;
 
-	buf = e3d_buffer_new(detail * 2 + (detail - 1) * 6,
-		E3D_BUFFER_VERTEX | E3D_BUFFER_COLOR | E3D_BUFFER_NORMAL);
-	if (!buf)
-		return -ENOMEM;
+	if (extents[0] <= 0 || extents[1] <= 0 || extents[2] <= 0)
+		return -EINVAL;
 
-	create_cylinder_buffer(buf, extends, detail);
+	/*
+	 * Create vertex and color buffers.
+	 * Both contain only data for the lower and upper circle. The different
+	 * primitives will use index buffers to create both circles and the side
+	 * wall.
+	 */
 
-	for (i = 0; i < buf->num; ++i)
-		memcpy(&buf->color[i], color, sizeof(GLfloat) * 4);
+	ret = e3d_vbo_new_v4(&vb, detail * 2);
+	if (ret)
+		return ret;
 
-	pbottom = e3d_primitive_new(detail + 1);
-	if (!pbottom) {
-		ret = -ENOMEM;
-		goto err_buf;
+	fill_cylinder(vb, extents, detail);
+
+	ret = e3d_vbo_new_v4(&cb, vb->num);
+	if (ret)
+		goto err_vert;
+
+	for (i = 0; i < cb->num; ++i)
+		math_v4_copy(E3D_VBO_AT(cb, i), col);
+
+	/* bottom circle normal and index buffer plus primitive */
+	ret = e3d_vbo_new_v4(&nb, detail + 1);
+	if (ret)
+		goto err_color;
+
+	ret = e3d_primitive_new_idx(&pbottom, detail + 1);
+	if (ret) {
+		e3d_vbo_unref(nb);
+		goto err_color;
 	}
+	e3d_primitive_set_normal(pbottom, 0, nb);
+	e3d_vbo_unref(nb);
 
-	ptop = e3d_primitive_new(detail + 1);
-	if (!ptop) {
-		ret = -ENOMEM;
+	/* upper circle normal and index buffer plus primitive */
+	ret = e3d_vbo_new_v4(&nb, detail + 1);
+	if (ret)
+		goto err_pbottom;
+
+	ret = e3d_primitive_new_idx(&ptop, detail + 1);
+	if (ret) {
+		e3d_vbo_unref(nb);
 		goto err_pbottom;
 	}
+	e3d_primitive_set_normal(ptop, 0, nb);
+	e3d_vbo_unref(nb);
 
-	pround = e3d_primitive_new((detail - 1) * 6);
-	if (!pround) {
-		ret = -ENOMEM;
+	/* side wall normal and index buffer plus primitive */
+	ret = e3d_vbo_new_v4(&nb, (detail - 1) * 6);
+	if (ret)
+		goto err_ptop;
+
+	ret = e3d_primitive_new_idx(&pround, (detail - 1) * 6);
+	if (ret) {
+		e3d_vbo_unref(nb);
 		goto err_ptop;
 	}
+	e3d_primitive_set_normal(pround, 0, nb);
+	e3d_vbo_unref(nb);
 
-	bottom = e3d_shape_new();
-	if (!bottom) {
-		ret = -ENOMEM;
+	/* shapes */
+	ret = e3d_shape_new(&bottom);
+	if (ret)
 		goto err_pround;
-	}
 
-	top = e3d_shape_new();
-	if (!top) {
-		ret = -ENOMEM;
+	ret = e3d_shape_new(&top);
+	if (ret)
 		goto err_bottom;
-	}
 
-	round = e3d_shape_new();
-	if (!round) {
-		ret = -ENOMEM;
+	ret = e3d_shape_new(&round);
+	if (ret)
 		goto err_top;
-	}
 
-	/* create triangle fan buffer for bottom circle */
-	pbottom->ibuf[0] = 0;
-	for (i = 1; i < detail; ++i) {
-		/* reverse order as we have to face down */
-		pbottom->ibuf[i] = detail - i;
-	}
-	pbottom->ibuf[i] = detail - 1;
+	/* triangle fan buffer for bottom circle with indices and normals */
+	/* reverse order as we have to face down */
+	*(GLuint*)E3D_VBO_AT(pbottom->index, 0) = 0;
+	for (i = 1; i < detail; ++i)
+		*(GLuint*)E3D_VBO_AT(pbottom->index, i) = detail - i;
+	*(GLuint*)E3D_VBO_AT(pbottom->index, i) = detail - 1;
+
+	for (i = 0; i <= detail; ++i)
+		math_v4_copy(E3D_VBO_AT(pbottom->normal, i),
+						(math_v4) { 0, 0, -1, 0 });
 
 	pbottom->type = GL_TRIANGLE_FAN;
-	e3d_primitive_set_buffer(pbottom, buf);
+	e3d_primitive_set_vertex(pbottom, 0, vb);
+	e3d_primitive_set_color(pbottom, 0, cb);
 	e3d_shape_set_primitive(bottom, pbottom);
 
-	/* create triangle fan buffer for upper circle */
-	ptop->ibuf[0] = detail;
-	for (i = 1; i < detail; ++i) {
-		ptop->ibuf[i] = detail + i;
-	}
-	ptop->ibuf[i] = detail + 1;
+	/* triangle fan buffer for upper circle with indices and normals */
+	*(GLuint*)E3D_VBO_AT(ptop->index, 0) = 0;
+	for (i = 1; i < detail; ++i)
+		*(GLuint*)E3D_VBO_AT(ptop->index, i) = i;
+	*(GLuint*)E3D_VBO_AT(ptop->index, i) = 1;
+
+	for (i = 0; i <= detail; ++i)
+		math_v4_copy(E3D_VBO_AT(ptop->normal, i),
+						(math_v4) { 0, 0, 1, 0 });
 
 	ptop->type = GL_TRIANGLE_FAN;
-	e3d_primitive_set_buffer(ptop, buf);
+	e3d_primitive_set_vertex(ptop, detail, vb);
+	e3d_primitive_set_color(ptop, detail, cb);
 	e3d_shape_set_primitive(top, ptop);
 
-	memset(pround->ibuf, 0, sizeof(GLuint) * (detail - 1) * 6);
 	/* create triangles buffer for side wall */
 	for (i = 0; i < (detail - 1); ++i) {
-		pround->ibuf[i * 6] = i + 1;
-		pround->ibuf[i * 6 + 1] = i + 2;
-		pround->ibuf[i * 6 + 2] = detail + i + 1;
-		pround->ibuf[i * 6 + 3] = detail + i + 2;
-		pround->ibuf[i * 6 + 4] = detail + i + 1;
-		pround->ibuf[i * 6 + 5] = i + 2;
+		*(GLuint*)E3D_VBO_AT(pround->index, i * 6) = i + 1;
+		*(GLuint*)E3D_VBO_AT(pround->index, i * 6 + 1) = i + 2;
+		*(GLuint*)E3D_VBO_AT(pround->index, i * 6 + 2) = detail + i + 1;
+		*(GLuint*)E3D_VBO_AT(pround->index, i * 6 + 3) = detail + i + 2;
+		*(GLuint*)E3D_VBO_AT(pround->index, i * 6 + 4) = detail + i + 1;
+		*(GLuint*)E3D_VBO_AT(pround->index, i * 6 + 5) = i + 2;
 	}
 	/* last index must point to first triangle; fix this */
-	i = detail - 2;
-	pround->ibuf[i * 6] = i + 1;
-	pround->ibuf[i * 6 + 1] = 1;
-	pround->ibuf[i * 6 + 2] = detail + i + 1;
-	pround->ibuf[i * 6 + 3] = detail + 1;
-	pround->ibuf[i * 6 + 4] = detail + i + 1;
-	pround->ibuf[i * 6 + 5] = 1;
+	--i;
+	*(GLuint*)E3D_VBO_AT(pround->index, i * 6) = i + 1;
+	*(GLuint*)E3D_VBO_AT(pround->index, i * 6 + 1) = 1;
+	*(GLuint*)E3D_VBO_AT(pround->index, i * 6 + 2) = detail + i + 1;
+	*(GLuint*)E3D_VBO_AT(pround->index, i * 6 + 3) = detail + 1;
+	*(GLuint*)E3D_VBO_AT(pround->index, i * 6 + 4) = detail + i + 1;
+	*(GLuint*)E3D_VBO_AT(pround->index, i * 6 + 5) = 1;
 
 	pround->type = GL_TRIANGLES;
-	e3d_primitive_set_buffer(pround, buf);
+	e3d_primitive_set_vertex(pround, 0, vb);
+	e3d_primitive_set_color(pround, 0, cb);
+	ret = e3d_primitive_generate_normals(pround);
+	if (ret)
+		goto err_round;
 	e3d_shape_set_primitive(round, pround);
 
 	e3d_shape_link(shape, bottom);
 	e3d_shape_link(shape, top);
 	e3d_shape_link(shape, round);
 
+err_round:
 	e3d_shape_unref(round);
 err_top:
 	e3d_shape_unref(top);
@@ -595,8 +496,10 @@ err_ptop:
 	e3d_primitive_unref(ptop);
 err_pbottom:
 	e3d_primitive_unref(pbottom);
-err_buf:
-	e3d_buffer_unref(buf);
+err_color:
+	e3d_vbo_unref(cb);
+err_vert:
+	e3d_vbo_unref(vb);
 	return ret;
 }
 
@@ -605,47 +508,48 @@ err_buf:
  * to \shape.
  * Returns 0 on success.
  */
-static int load_cylinder(struct e3d_shape *shape, const struct uconf_entry *e)
+static int load_cylinder(const struct uconf_entry *e, struct e3d_shape *shape)
 {
 	int ret = 0;
 	const struct uconf_entry *iter;
 	struct e3d_shape *new;
+	size_t detail = 0;
 	math_v3 extends = { 0.0, 0.0, 0.0 };
 	math_v4 color = { 1.0, 1.0, 1.0, 1.0 };
 
-	if (e->type != UCONF_ENTRY_LIST)
+	if (!uconf_entry_is_list(e))
 		return -EINVAL;
 
-	new = e3d_shape_new();
-	if (!new)
-		return -ENOMEM;
+	ret = e3d_shape_new(&new);
+	if (ret)
+		return ret;
 
 	UCONF_ENTRY_FOR(e, iter) {
 		if (!iter->name)
-			goto err;
+			ret = -EINVAL;
 		else if (cstr_strcmp(iter->name, -1, "extents"))
-			ret = load_vec(iter, (void*)extends, 3);
+			ret = config_load_v3(iter, extends);
 		else if (cstr_strcmp(iter->name, -1, "color"))
-			ret = load_vec(iter, (void*)color, 4);
+			ret = config_load_v34(iter, color, 1);
+		else if (cstr_strcmp(iter->name, -1, "detail"))
+			ret = config_load_size(iter, &detail);
 		else
-			ret = load_shape_generic(new, iter);
+			ret = load_generic(iter, new);
 
 		if (ret)
 			goto err;
 	}
 
-	ret = create_cylinder(new, extends, color);
+	ret = create_cylinder(new, extends, color, detail);
 	if (ret)
 		goto err;
 
 	e3d_shape_link(shape, new);
-	ret = 0;
 
 err:
 	e3d_shape_unref(new);
 	return ret;
 }
-#endif
 
 /*
  * Loads generic shape values into \shape from \e. Returns error if an unknwon
@@ -660,6 +564,8 @@ static int load_generic(const struct uconf_entry *e, struct e3d_shape *shape)
 		return -EINVAL;
 	} else if (cstr_strcmp(e->name, -1, "raw")) {
 		return load_raw(e, shape);
+	} else if (cstr_strcmp(e->name, -1, "cylinder")) {
+		return load_cylinder(e, shape);
 	} else if (cstr_strcmp(e->name, -1, "translate")) {
 		ret = config_load_v3(e, v);
 		if (ret)
