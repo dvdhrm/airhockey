@@ -210,6 +210,30 @@ int e3d_primitive_new(struct e3d_primitive **prim)
 	return 0;
 }
 
+int e3d_primitive_new_idx(struct e3d_primitive **prim, size_t n)
+{
+	struct e3d_vbo *i;
+	struct e3d_primitive *p;
+	int ret;
+
+	ret = e3d_vbo_new_idx(&i, n);
+	if (ret)
+		return ret;
+
+	ret = e3d_primitive_new(&p);
+	if (ret) {
+		e3d_vbo_unref(i);
+		return ret;
+	}
+
+	e3d_primitive_set_index(p, 0, i);
+	e3d_vbo_unref(i);
+	p->num = n;
+	*prim = p;
+
+	return 0;
+}
+
 void e3d_primitive_ref(struct e3d_primitive *prim)
 {
 	assert(prim);
@@ -283,7 +307,7 @@ void e3d_primitive_set_index(struct e3d_primitive *prim, size_t off,
 	e3d_vbo_unref(prim->index);
 	e3d_vbo_ref(vbo);
 	prim->ioff = off;
-	prim->normal = vbo;
+	prim->index = vbo;
 }
 
 static void setup_uniforms(int how, const struct e3d_shader_locations *loc,
@@ -360,9 +384,24 @@ void e3d_primitive_draw(struct e3d_primitive *prim, int how,
 		E3D(glEnableVertexAttribArray(loc->attr[E3D_A_VERTEX]));
 
 		for (i = 0; i < prim->num; ++i) {
-			math_v4_copy(vertex[0], E3D_VBO_AT(prim->vertex, i));
-			math_v4_copy(vertex[1], E3D_VBO_AT(prim->vertex, i));
-			math_v4_add(vertex[1], E3D_VBO_AT(prim->normal, i));
+			if (prim->index) {
+				math_v4_copy(vertex[0],
+					E3D_VBO_AT(prim->vertex, prim->voff +
+					*(GLuint*)E3D_VBO_AT(prim->index, i)));
+				math_v4_copy(vertex[1],
+					E3D_VBO_AT(prim->vertex, prim->voff +
+					*(GLuint*)E3D_VBO_AT(prim->index, i)));
+				math_v4_add(vertex[1],
+					E3D_VBO_AT(prim->normal, prim->noff +
+					*(GLuint*)E3D_VBO_AT(prim->index, i)));
+			} else {
+				math_v4_copy(vertex[0], E3D_VBO_AT(prim->vertex,
+							prim->voff + i));
+				math_v4_copy(vertex[1], E3D_VBO_AT(prim->vertex,
+							prim->voff + i));
+				math_v4_add(vertex[1], E3D_VBO_AT(prim->normal,
+							prim->noff + i));
+			}
 
 			E3D(glVertexAttribPointer(loc->attr[E3D_A_VERTEX], 4,
 						GL_FLOAT, GL_FALSE, 0, vertex));
@@ -385,7 +424,7 @@ int e3d_primitive_generate_normals(struct e3d_primitive *prim)
 	assert(prim->vertex);
 	assert(prim->vertex->data);
 
-	if (!e3d_vbo_is_v4(prim->vertex) || prim->index)
+	if (!e3d_vbo_is_v4(prim->vertex))
 		return -EINVAL;
 
 	ret = e3d_vbo_new_v4(&n, prim->vertex->num);
@@ -396,8 +435,19 @@ int e3d_primitive_generate_normals(struct e3d_primitive *prim)
 
 	v = prim->vertex;
 	for (i = 0; i < (prim->num - 2); i += 3) {
-		math_v3_sub_dest(a, E3D_VBO_AT(v, i), E3D_VBO_AT(v, i + 1));
-		math_v3_sub_dest(b, E3D_VBO_AT(v, i), E3D_VBO_AT(v, i + 2));
+		if (prim->index) {
+			math_v3_sub_dest(a,
+				E3D_VBO_AT(v, E3D_VBO_AT_IDX(prim->index, i)),
+				E3D_VBO_AT(v, E3D_VBO_AT_IDX(prim->index, i + 1)));
+			math_v3_sub_dest(b,
+				E3D_VBO_AT(v, E3D_VBO_AT_IDX(prim->index, i)),
+				E3D_VBO_AT(v, E3D_VBO_AT_IDX(prim->index, i + 2)));
+		} else {
+			math_v3_sub_dest(a, E3D_VBO_AT(v, i),
+							E3D_VBO_AT(v, i + 1));
+			math_v3_sub_dest(b, E3D_VBO_AT(v, i),
+							E3D_VBO_AT(v, i + 2));
+		}
 		math_v3_product_dest(dest, a, b);
 		math_v3_normalize(dest);
 
@@ -405,9 +455,17 @@ int e3d_primitive_generate_normals(struct e3d_primitive *prim)
 		 * Normals buffer is by default initialized to 0 so we can
 		 * safely copy v3 into v4 buffer.
 		 */
-		math_v3_copy(E3D_VBO_AT(n, i), dest);
-		math_v3_copy(E3D_VBO_AT(n, i + 1), dest);
-		math_v3_copy(E3D_VBO_AT(n, i + 2), dest);
+		if (prim->index) {
+			math_v3_copy(E3D_VBO_AT(n, E3D_VBO_AT_IDX(prim->index, i)), dest);
+			math_v3_copy(E3D_VBO_AT(n, E3D_VBO_AT_IDX(prim->index, i +
+			1)), dest);
+			math_v3_copy(E3D_VBO_AT(n, E3D_VBO_AT_IDX(prim->index, i +
+			2)), dest);
+		} else {
+			math_v3_copy(E3D_VBO_AT(n, i), dest);
+			math_v3_copy(E3D_VBO_AT(n, i + 1), dest);
+			math_v3_copy(E3D_VBO_AT(n, i + 2), dest);
+		}
 	}
 
 	return 0;

@@ -306,6 +306,7 @@ extern void e3d_vbo_debug(struct e3d_vbo *vbo);
 
 #define E3D_VBO_AT(vbo, idx) E3D_OFF((vbo)->data, \
 			e3d_tsize[(vbo)->ele_type] * (vbo)->ele_num * (idx))
+#define E3D_VBO_AT_IDX(vbo, idx) *((GLuint*)E3D_VBO_AT(vbo, idx))
 
 static inline bool e3d_vbo_is_v4(struct e3d_vbo *vbo)
 {
@@ -384,6 +385,7 @@ enum e3d_primitive_drawer {
 };
 
 extern int e3d_primitive_new(struct e3d_primitive **prim);
+extern int e3d_primitive_new_idx(struct e3d_primitive **prim, size_t n);
 extern void e3d_primitive_ref(struct e3d_primitive *prim);
 extern void e3d_primitive_unref(struct e3d_primitive *prim);
 extern void e3d_primitive_set_vertex(struct e3d_primitive *prim, size_t off,
