@@ -262,6 +262,7 @@ void world_draw(struct world *world, struct e3d_transform *trans,
 							struct shaders *shaders)
 {
 	const struct e3d_shader_locations *loc;
+	bool draw_normals = false;
 
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
@@ -294,13 +295,15 @@ void world_draw(struct world *world, struct e3d_transform *trans,
 	draw_obj(world->root, loc, trans, E3D_DRAW_SILHOUETTE);
 
 	/* draw normals */
-	glLineWidth(1.0);
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-	glDepthFunc(GL_LESS);
-	glCullFace(GL_BACK);
+	if (draw_normals) {
+		glLineWidth(1.0);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		glDepthFunc(GL_LESS);
+		glCullFace(GL_BACK);
 
-	e3d_shader_use(shaders->simple);
-	loc = e3d_shader_locations(shaders->simple);
+		e3d_shader_use(shaders->simple);
+		loc = e3d_shader_locations(shaders->simple);
 
-	draw_obj(world->root, loc, trans, E3D_DRAW_NORMALS);
+		draw_obj(world->root, loc, trans, E3D_DRAW_NORMALS);
+	}
 }

@@ -267,7 +267,7 @@ void phys_body_set_shape_cylinder(struct phys_body *body)
 {
 	phys_body_set_shape_none(body);
 
-	body->shape = new btCylinderShapeZ(btVector3(1, 1, 0.5));
+	body->shape = new btCylinderShapeZ(btVector3(1, 1, 0.25));
 	body->motion = new btDefaultMotionState(btTransform(
 				btQuaternion(0, 0, 0, 1), btVector3(0, 0, 10)));
 
